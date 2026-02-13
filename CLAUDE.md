@@ -146,6 +146,23 @@ probe/
   - Last seen (human-readable timestamp)
 - Sorted by last seen (most recent first).
 
+#### Container Packaging
+
+- The probe must be packaged in a Docker container so it can run on any
+  host with kernel 6.6+ without a local build.
+- Multi-stage build:
+  - Build stage: `golang:1.24-bookworm` with `clang` and `libbpf-dev`.
+    Runs `go generate` (bpf2go) and builds a static Go binary.
+  - Runtime stage: `debian:bookworm-slim`. Contains only the static binary.
+- Entrypoint: `["/l2radar"]` — exposes the full subcommand interface
+  (`attach`, `dump`).
+- Runtime requirements:
+  - `--privileged` and `--network=host` for `attach` (BPF syscalls + host
+    interface access).
+  - `-v /sys/fs/bpf:/sys/fs/bpf` to pin maps readable from the host.
+  - `dump` does not require `--privileged`, only the bpffs mount (read-only).
+- Files: `probe/Dockerfile`, `probe/.dockerignore`.
+
 ### Constraints
 
 - All components MUST have unit tests and they must pass.
