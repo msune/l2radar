@@ -42,8 +42,60 @@ struct {
 	__uint(max_entries, MAX_ENTRIES);
 } neighbours SEC(".maps");
 
+/* Check if a MAC address is multicast (bit 0 of first byte set). */
+static __always_inline int is_multicast(__u8 *mac)
+{
+	return mac[0] & 0x01;
+}
+
+/* Check if a MAC address is broadcast (ff:ff:ff:ff:ff:ff). */
+static __always_inline int is_broadcast(__u8 *mac)
+{
+	return (mac[0] & mac[1] & mac[2] & mac[3] & mac[4] & mac[5]) == 0xff;
+}
+
+/*
+ * Upsert a MAC address into the neighbours map.
+ * Sets first_seen on creation, updates last_seen always.
+ */
+static __always_inline void track_mac(__u8 *mac)
+{
+	struct mac_key key = {};
+	__builtin_memcpy(key.addr, mac, ETH_ALEN);
+
+	__u64 now = bpf_ktime_get_ns();
+
+	struct neighbour_entry *entry = bpf_map_lookup_elem(&neighbours, &key);
+	if (entry) {
+		entry->last_seen = now;
+		return;
+	}
+
+	/* New entry */
+	struct neighbour_entry new_entry = {};
+	new_entry.first_seen = now;
+	new_entry.last_seen = now;
+	bpf_map_update_elem(&neighbours, &key, &new_entry, BPF_NOEXIST);
+}
+
 SEC("tc")
 int l2radar(struct __sk_buff *skb)
 {
+	void *data = (void *)(long)skb->data;
+	void *data_end = (void *)(long)skb->data_end;
+
+	struct ethhdr *eth = data;
+	if ((void *)(eth + 1) > data_end)
+		return TC_ACT_UNSPEC;
+
+	__u8 *src_mac = eth->h_source;
+
+	/* Skip multicast and broadcast source MACs */
+	if (is_multicast(src_mac) || is_broadcast(src_mac))
+		return TC_ACT_UNSPEC;
+
+	/* Track this unicast MAC */
+	track_mac(src_mac);
+
 	return TC_ACT_UNSPEC;
 }
