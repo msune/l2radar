@@ -73,6 +73,48 @@ func lookupNeighbour(t *testing.T, m *ebpf.Map, mac net.HardwareAddr) (*l2radarN
 	return &val, true
 }
 
+// buildARPPacket constructs an ARP packet with Ethernet header.
+// opcode: 1=request, 2=reply
+func buildARPPacket(ethDst, ethSrc net.HardwareAddr, opcode uint16,
+	senderMAC net.HardwareAddr, senderIP net.IP,
+	targetMAC net.HardwareAddr, targetIP net.IP) []byte {
+
+	// ARP payload: 28 bytes for IPv4-over-Ethernet
+	arp := make([]byte, 28)
+	binary.BigEndian.PutUint16(arp[0:2], 1)      // htype = Ethernet
+	binary.BigEndian.PutUint16(arp[2:4], 0x0800)  // ptype = IPv4
+	arp[4] = 6                                     // hlen
+	arp[5] = 4                                     // plen
+	binary.BigEndian.PutUint16(arp[6:8], opcode)
+	copy(arp[8:14], senderMAC)
+	copy(arp[14:18], senderIP.To4())
+	copy(arp[18:24], targetMAC)
+	copy(arp[24:28], targetIP.To4())
+
+	return buildEthernetFrame(ethDst, ethSrc, 0x0806, arp)
+}
+
+// ipv4FromEntry extracts the active IPv4 addresses from a neighbour entry.
+func ipv4FromEntry(entry *l2radarNeighbourEntry) []net.IP {
+	var ips []net.IP
+	for i := 0; i < int(entry.Ipv4Count); i++ {
+		ip := make(net.IP, 4)
+		binary.BigEndian.PutUint32(ip, entry.Ipv4[i])
+		ips = append(ips, ip)
+	}
+	return ips
+}
+
+// containsIPv4 checks if an IP is in the list.
+func containsIPv4(ips []net.IP, target net.IP) bool {
+	for _, ip := range ips {
+		if ip.Equal(target) {
+			return true
+		}
+	}
+	return false
+}
+
 // --- Tests ---
 
 func TestMulticastMACNotTracked(t *testing.T) {
@@ -195,5 +237,144 @@ func TestReturnValueAlwaysUnspec(t *testing.T) {
 				t.Errorf("expected TC_ACT_UNSPEC (0xffffffff), got 0x%x", ret)
 			}
 		})
+	}
+}
+
+// --- ARP Tests ---
+
+func TestARPRequestSenderTracked(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	senderMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x10}
+	senderIP := net.ParseIP("192.168.1.10").To4()
+	targetMAC := net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	targetIP := net.ParseIP("192.168.1.1").To4()
+	broadcast := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	pkt := buildARPPacket(broadcast, senderMAC, 1, senderMAC, senderIP, targetMAC, targetIP)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, senderMAC)
+	if !found {
+		t.Fatal("sender MAC should be tracked from ARP request")
+	}
+	if entry.Ipv4Count != 1 {
+		t.Fatalf("expected ipv4_count=1, got %d", entry.Ipv4Count)
+	}
+	ips := ipv4FromEntry(entry)
+	if !containsIPv4(ips, senderIP) {
+		t.Errorf("sender IP %s not found in entry", senderIP)
+	}
+}
+
+func TestARPReplySenderAndTargetTracked(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	senderMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x20}
+	senderIP := net.ParseIP("192.168.1.1").To4()
+	targetMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x21}
+	targetIP := net.ParseIP("192.168.1.10").To4()
+
+	pkt := buildARPPacket(targetMAC, senderMAC, 2, senderMAC, senderIP, targetMAC, targetIP)
+	runProgram(t, objs.L2radar, pkt)
+
+	// Sender should have its IP tracked
+	sEntry, found := lookupNeighbour(t, objs.Neighbours, senderMAC)
+	if !found {
+		t.Fatal("sender MAC should be tracked from ARP reply")
+	}
+	if sEntry.Ipv4Count < 1 {
+		t.Fatalf("expected sender ipv4_count>=1, got %d", sEntry.Ipv4Count)
+	}
+	if !containsIPv4(ipv4FromEntry(sEntry), senderIP) {
+		t.Errorf("sender IP %s not found", senderIP)
+	}
+
+	// Target should also have its IP tracked
+	tEntry, found := lookupNeighbour(t, objs.Neighbours, targetMAC)
+	if !found {
+		t.Fatal("target MAC should be tracked from ARP reply")
+	}
+	if tEntry.Ipv4Count < 1 {
+		t.Fatalf("expected target ipv4_count>=1, got %d", tEntry.Ipv4Count)
+	}
+	if !containsIPv4(ipv4FromEntry(tEntry), targetIP) {
+		t.Errorf("target IP %s not found", targetIP)
+	}
+}
+
+func TestGratuitousARP(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	senderMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x30}
+	ip := net.ParseIP("192.168.1.50").To4()
+	broadcast := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	// Gratuitous ARP: sender IP == target IP
+	pkt := buildARPPacket(broadcast, senderMAC, 1, senderMAC, ip, broadcast, ip)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, senderMAC)
+	if !found {
+		t.Fatal("sender MAC should be tracked from gratuitous ARP")
+	}
+	if entry.Ipv4Count != 1 {
+		t.Fatalf("expected ipv4_count=1, got %d", entry.Ipv4Count)
+	}
+	if !containsIPv4(ipv4FromEntry(entry), ip) {
+		t.Errorf("gratuitous ARP IP %s not found", ip)
+	}
+}
+
+func TestARPIPv4Dedup(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	senderMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x40}
+	senderIP := net.ParseIP("192.168.1.100").To4()
+	targetMAC := net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	targetIP := net.ParseIP("192.168.1.1").To4()
+	broadcast := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	pkt := buildARPPacket(broadcast, senderMAC, 1, senderMAC, senderIP, targetMAC, targetIP)
+
+	// Send same ARP twice
+	runProgram(t, objs.L2radar, pkt)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, senderMAC)
+	if !found {
+		t.Fatal("MAC not found")
+	}
+	if entry.Ipv4Count != 1 {
+		t.Errorf("expected ipv4_count=1 after dedup, got %d", entry.Ipv4Count)
+	}
+}
+
+func TestARPIPv4Cap(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	senderMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x50}
+	targetMAC := net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	targetIP := net.ParseIP("192.168.1.1").To4()
+	broadcast := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	// Send 5 ARP requests with different sender IPs
+	for i := 0; i < 5; i++ {
+		senderIP := net.IPv4(10, 0, 0, byte(i+1)).To4()
+		pkt := buildARPPacket(broadcast, senderMAC, 1, senderMAC, senderIP, targetMAC, targetIP)
+		runProgram(t, objs.L2radar, pkt)
+	}
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, senderMAC)
+	if !found {
+		t.Fatal("MAC not found")
+	}
+	if entry.Ipv4Count != 4 {
+		t.Errorf("expected ipv4_count=4 (capped), got %d", entry.Ipv4Count)
 	}
 }
