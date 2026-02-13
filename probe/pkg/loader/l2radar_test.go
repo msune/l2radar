@@ -106,11 +106,14 @@ func buildARPPacket(ethDst, ethSrc net.HardwareAddr, opcode uint16,
 }
 
 // ipv4FromEntry extracts the active IPv4 addresses from a neighbour entry.
+// IPs are stored as __be32 (network byte order) in the BPF map. On a
+// little-endian host, Go reads these as native uint32, so we use
+// LittleEndian to recover the original raw bytes.
 func ipv4FromEntry(entry *l2radarNeighbourEntry) []net.IP {
 	var ips []net.IP
 	for i := 0; i < int(entry.Ipv4Count); i++ {
 		ip := make(net.IP, 4)
-		binary.BigEndian.PutUint32(ip, entry.Ipv4[i])
+		binary.LittleEndian.PutUint32(ip, entry.Ipv4[i])
 		ips = append(ips, ip)
 	}
 	return ips
