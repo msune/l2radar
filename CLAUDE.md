@@ -131,6 +131,21 @@ probe/
 - Signal handling (SIGINT/SIGTERM) for clean detach + unpin
 - Structured logging via slog
 
+#### Map Dump Tool
+
+- The CLI must support a `dump` subcommand that reads the pinned eBPF map
+  for a given interface and prints the neighbour table to the terminal.
+- Usage: `l2radar dump --iface <name> [--pin-path <path>]`
+- Opens the pinned map at `<pin-path>/neigh-<iface>` (read-only, no
+  privileges required beyond map pin permissions).
+- Output: a formatted table with columns:
+  - MAC address
+  - IPv4 addresses (comma-separated)
+  - IPv6 addresses (comma-separated)
+  - First seen (human-readable timestamp)
+  - Last seen (human-readable timestamp)
+- Sorted by last seen (most recent first).
+
 ### Constraints
 
 - All components MUST have unit tests and they must pass.
