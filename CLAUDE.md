@@ -160,7 +160,8 @@ probe/
   - `--privileged` and `--network=host` for `attach` (BPF syscalls + host
     interface access).
   - `-v /sys/fs/bpf:/sys/fs/bpf` to pin maps readable from the host.
-  - `dump` does not require `--privileged`, only the bpffs mount (read-only).
+  - `dump` requires `--cap-add=BPF` (the `bpf()` syscall is needed to open
+    pinned maps) and the bpffs mount (read-only).
 - Files: `probe/Dockerfile`, `probe/.dockerignore`.
 
 ### Constraints
