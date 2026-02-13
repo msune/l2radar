@@ -1,0 +1,14 @@
+# Build artifacts
+l2radar
+*.test
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
