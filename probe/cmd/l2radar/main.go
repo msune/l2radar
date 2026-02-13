@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/marc/l2radar/probe/pkg/dump"
 	"github.com/marc/l2radar/probe/pkg/loader"
 )
 
@@ -64,15 +65,40 @@ func resolveInterfaces(ifaces []string) ([]string, error) {
 	return result, nil
 }
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage: l2radar [flags]           — attach probes\n")
+	fmt.Fprintf(os.Stderr, "       l2radar dump [flags]      — dump neighbour table for an interface\n")
+	fmt.Fprintf(os.Stderr, "\nRun 'l2radar -help' or 'l2radar dump -help' for details.\n")
+}
+
 func main() {
+	// Check if first arg is the "dump" subcommand.
+	if len(os.Args) >= 2 && os.Args[1] == "dump" {
+		runDump(os.Args[2:])
+		return
+	}
+
+	// Default mode: attach probes.
+	runDefault(os.Args[1:])
+}
+
+func runDefault(args []string) {
+	fs := flag.NewFlagSet("l2radar", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: l2radar [flags]\n\n")
+		fmt.Fprintf(os.Stderr, "Attach eBPF probes to network interfaces.\n\n")
+		fmt.Fprintf(os.Stderr, "Flags:\n")
+		fs.PrintDefaults()
+	}
+
 	var ifaces stringSlice
-	pinPath := flag.String("pin-path", loader.DefaultPinPath, "base path for pinning eBPF maps")
-	flag.Var(&ifaces, "iface", "network interface to monitor (repeatable; \"any\" for all L2 interfaces)")
-	flag.Parse()
+	pinPath := fs.String("pin-path", loader.DefaultPinPath, "base path for pinning eBPF maps")
+	fs.Var(&ifaces, "iface", "network interface to monitor (repeatable; \"any\" for all L2 interfaces)")
+	fs.Parse(args)
 
 	if len(ifaces) == 0 {
 		fmt.Fprintf(os.Stderr, "error: at least one -iface is required\n")
-		flag.Usage()
+		fs.Usage()
 		os.Exit(1)
 	}
 
@@ -118,4 +144,27 @@ func main() {
 			logger.Error("failed to close probe", "interface", p.Interface(), "error", err)
 		}
 	}
+}
+
+func runDump(args []string) {
+	fs := flag.NewFlagSet("dump", flag.ExitOnError)
+	iface := fs.String("iface", "", "network interface to dump")
+	pinPath := fs.String("pin-path", loader.DefaultPinPath, "base path for pinned eBPF maps")
+	fs.Parse(args)
+
+	if *iface == "" {
+		fmt.Fprintf(os.Stderr, "error: -iface is required\n")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	mapPath := dump.PinPath(*pinPath, *iface)
+	neighbours, err := dump.ReadMap(mapPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	dump.SortByLastSeen(neighbours)
+	dump.FormatTable(os.Stdout, neighbours)
 }
