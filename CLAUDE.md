@@ -29,15 +29,16 @@ Assume production-quality standards.
 
 Create a tool that passively monitors L2 neighbours using eBPF (TC/TCX).
 
-The architecture has three distinct components:
+The architecture has the following components:
 
-1. eBPF code: passively inspects packets and writes unicast MAC addresses.
-   into an eBPF single MAP. Multicast addresses MUST NOT be tracked. When
+1. eBPF probe: passively inspects packets and writes unicast MAC addresses
+   into an eBPF map (one per interface). Multicast addresses MUST NOT be tracked. When
    ARP / Neighbour Discovery Protocol (NDP) packets are observed, the eBPF
    program should add the observed IP addresses associated with the MAC address.
    The program MUST NOT assume regular unicast IPv4/IPv6 can be used to deduce
    IP addresses, as intermediate routers can exist. The eBPF map must be
-   read-only by any user
+   read-only by any user.
+2. A Go CLI tool to load, attach, and manage the eBPF programs.
 3. A graphical user interface to display the neighbours. The UI needs to be
    in a form of Dashboard, with a modern design. It also has to comply with
    the following characteristics:
@@ -59,10 +60,82 @@ The architecture has three distinct components:
     serve it.
 - Golang for any command-line tool (if needed)
 
+### eBPF Component — Detailed Requirements
+
+#### Directory Structure
+
+```
+probe/
+├── bpf/
+│   ├── headers/          # vmlinux.h or minimal kernel headers
+│   └── l2radar.c         # eBPF C program
+├── cmd/
+│   └── l2radar/
+│       └── main.go       # CLI entrypoint
+├── pkg/
+│   └── loader/
+│       ├── loader.go     # Load, attach, pin logic
+│       ├── loader_test.go
+│       └── generate.go   # //go:generate bpf2go directive
+├── go.mod
+└── go.sum
+```
+
+#### Attachment & Map
+
+- Attach via **TCX ingress** (requires kernel 6.6+)
+- Can be attached to multiple interfaces simultaneously
+- One **BPF_MAP_TYPE_HASH** per interface
+- Pin path: `/sys/fs/bpf/l2radar/neigh-<iface>`
+- Map pin permissions: `0444` (world-readable)
+- Max entries: 4096 (default)
+- Return value: always **TC_ACT_UNSPEC** (passive, allows chaining)
+
+#### Map Key/Value Schema
+
+- **Key**: `u8 mac[6]` (padded to 8 bytes for alignment)
+- **Value**:
+  - `__be32 ipv4[4]` — up to 4 IPv4 addresses
+  - `struct in6_addr ipv6[4]` — up to 4 IPv6 addresses
+  - `u8 ipv4_count`, `u8 ipv6_count`
+  - `u64 first_seen` — ktime_get_ns at first observation
+  - `u64 last_seen` — ktime_get_ns at most recent observation
+
+#### Packet Parsing
+
+- **Multicast filter**: drop (skip tracking) if source MAC bit 0 is set
+  (`mac[0] & 0x01`) or broadcast (`ff:ff:ff:ff:ff:ff`)
+- **VLAN support**: handle 802.1Q-tagged frames (ethertype `0x8100`),
+  skip 4-byte tag to read inner ethertype
+- **MAC tracking**: every valid unicast frame upserts the source MAC
+  (set `first_seen` on creation, update `last_seen` always)
+- **ARP** (ethertype `0x0806`):
+  - Validate: htype=1, ptype=0x0800, hlen=6, plen=4
+  - Extract sender MAC + sender IP (request and reply)
+  - Extract target MAC + target IP (reply, opcode 2)
+  - Handle gratuitous ARP (sender IP == target IP)
+  - Dedup IPs; respect cap of 4 IPv4 per MAC
+- **NDP** (ethertype `0x86DD`, next_header=58 ICMPv6):
+  - Parse all NDP types: NS (135), NA (136), RS (133), RA (134)
+  - Parse NDP TLV options for Source Link-Layer Address (type 1)
+    and Target Link-Layer Address (type 2)
+  - Associate IPv6 source address with link-layer address from options
+  - Unsolicited NA: extract target address from NA body
+  - Unsolicited NS: extract source address
+  - Dedup IPs; respect cap of 4 IPv6 per MAC
+
+#### Go Loader (cilium/ebpf + bpf2go)
+
+- `probe/pkg/loader/`: library with `Attach()` / `Detach()` per interface
+- `probe/cmd/l2radar/`: CLI with `--iface` (repeatable), `--pin-path`
+- Signal handling (SIGINT/SIGTERM) for clean detach + unpin
+- Structured logging via slog
+
 ### Constraints
 
 - All components MUST have unit tests and they must pass.
-- eBPF programs MUST NOT interfere with traffic (passive monitoring only.
+- eBPF programs MUST NOT interfere with traffic (passive monitoring only).
+- eBPF programs MUST return TC_ACT_UNSPEC to allow program chaining.
 
 ### Success criteria
 
