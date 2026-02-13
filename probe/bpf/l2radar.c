@@ -257,7 +257,40 @@ static __always_inline void ndp_associate_ll(void *data_end,
 }
 
 /*
- * Process NDP packets (NS, NA).
+ * Parse NDP options starting at opt_start.
+ * src_ip: IPv6 address to associate with Source LL options.
+ * na_target: if non-NULL, IPv6 address to associate with Target LL options.
+ */
+static __always_inline void parse_ndp_options(void *data_end, void *opt_start,
+					      const struct in6_addr *src_ip,
+					      const struct in6_addr *na_target)
+{
+	void *opt_ptr = opt_start;
+
+	#pragma unroll
+	for (int i = 0; i < MAX_NDP_OPTIONS; i++) {
+		struct ndp_opt_hdr *opt = opt_ptr;
+		if ((void *)(opt + 1) > data_end)
+			break;
+		if (opt->length == 0)
+			break;
+
+		__u16 opt_len = (__u16)opt->length * 8;
+
+		if (opt->type == NDP_OPT_SOURCE_LL_ADDR) {
+			ndp_associate_ll(data_end, opt, src_ip);
+		} else if (opt->type == NDP_OPT_TARGET_LL_ADDR && na_target) {
+			ndp_associate_ll(data_end, opt, na_target);
+		}
+
+		opt_ptr += opt_len;
+		if (opt_ptr > data_end)
+			break;
+	}
+}
+
+/*
+ * Process NDP packets (NS, NA, RS, RA).
  * Extract link-layer addresses from NDP options and associate with IPv6.
  */
 static __always_inline void handle_ndp(void *data, void *data_end,
@@ -277,51 +310,39 @@ static __always_inline void handle_ndp(void *data, void *data_end,
 		return;
 
 	__u8 icmp_type = icmp->type;
-
-	/* Only process NDP NS/NA for now */
-	if (icmp_type != ICMPV6_NEIGHBOUR_SOLICITATION &&
-	    icmp_type != ICMPV6_NEIGHBOUR_ADVERTISEMENT)
-		return;
-
-	/* NS/NA body starts after ICMPv6 header (4 bytes) */
-	struct ndp_ns_na *ndp = (struct ndp_ns_na *)((void *)icmp + 4);
-	if ((void *)(ndp + 1) > data_end)
-		return;
-
-	/* Options start after the NS/NA body */
-	void *opt_start = (void *)(ndp + 1);
-
-	/* For NA: associate the target address with the source MAC
-	 * from the TLL option (if present). For unsolicited NA, the
-	 * target address is the address being announced. */
+	void *opt_start;
 	struct in6_addr *na_target = NULL;
-	if (icmp_type == ICMPV6_NEIGHBOUR_ADVERTISEMENT)
-		na_target = &ndp->target;
 
-	/* Parse NDP options (bounded loop) */
-	void *opt_ptr = opt_start;
-	#pragma unroll
-	for (int i = 0; i < MAX_NDP_OPTIONS; i++) {
-		struct ndp_opt_hdr *opt = opt_ptr;
-		if ((void *)(opt + 1) > data_end)
-			break;
-		if (opt->length == 0)
-			break;
-
-		__u16 opt_len = (__u16)opt->length * 8;
-
-		if (opt->type == NDP_OPT_SOURCE_LL_ADDR) {
-			/* Associate with IPv6 source address */
-			ndp_associate_ll(data_end, opt, &ip6->saddr);
-		} else if (opt->type == NDP_OPT_TARGET_LL_ADDR && na_target) {
-			/* Associate with the NA target address */
-			ndp_associate_ll(data_end, opt, na_target);
-		}
-
-		opt_ptr += opt_len;
-		if (opt_ptr > data_end)
-			break;
+	switch (icmp_type) {
+	case ICMPV6_NEIGHBOUR_SOLICITATION:
+	case ICMPV6_NEIGHBOUR_ADVERTISEMENT: {
+		/* NS/NA: 4-byte ICMPv6 hdr + 4 flags/reserved + 16 target */
+		struct ndp_ns_na *ndp = (struct ndp_ns_na *)((void *)icmp + 4);
+		if ((void *)(ndp + 1) > data_end)
+			return;
+		opt_start = (void *)(ndp + 1);
+		if (icmp_type == ICMPV6_NEIGHBOUR_ADVERTISEMENT)
+			na_target = &ndp->target;
+		break;
 	}
+	case ICMPV6_ROUTER_SOLICITATION:
+		/* RS: 4-byte ICMPv6 hdr + 4 reserved, then options */
+		opt_start = (void *)icmp + 8;
+		if (opt_start > data_end)
+			return;
+		break;
+	case ICMPV6_ROUTER_ADVERTISEMENT:
+		/* RA: 4-byte ICMPv6 hdr + 12 bytes (hop limit, flags,
+		 * lifetime, reachable time, retrans timer), then options */
+		opt_start = (void *)icmp + 16;
+		if (opt_start > data_end)
+			return;
+		break;
+	default:
+		return;
+	}
+
+	parse_ndp_options(data_end, opt_start, &ip6->saddr, na_target);
 }
 
 SEC("tc")

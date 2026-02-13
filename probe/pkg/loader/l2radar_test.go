@@ -603,3 +603,82 @@ func TestNDPIPv6Cap(t *testing.T) {
 		t.Errorf("expected ipv6_count=4 (capped), got %d", entry.Ipv6Count)
 	}
 }
+
+// --- NDP RS/RA Helpers ---
+
+// buildNDPRS constructs a Router Solicitation ICMPv6 packet body.
+// RS body: type(1) + code(1) + checksum(2) + reserved(4) + options
+func buildNDPRS(options []byte) []byte {
+	body := make([]byte, 8+len(options))
+	body[0] = 133 // ICMPv6 type: Router Solicitation
+	body[1] = 0
+	copy(body[8:], options)
+	return body
+}
+
+// buildNDPRA constructs a Router Advertisement ICMPv6 packet body.
+// RA body: type(1) + code(1) + checksum(2) + hop_limit(1) + flags(1) +
+//          router_lifetime(2) + reachable_time(4) + retrans_timer(4) + options
+func buildNDPRA(options []byte) []byte {
+	body := make([]byte, 16+len(options))
+	body[0] = 134 // ICMPv6 type: Router Advertisement
+	body[1] = 0
+	body[4] = 64 // current hop limit
+	// flags, lifetime, reachable, retrans left as 0
+	copy(body[16:], options)
+	return body
+}
+
+// --- NDP RS/RA Tests ---
+
+func TestNDPRSWithSourceLinkLayerOption(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x70}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0x00, 0x00, 0x00, 0x02}
+	srcIP := net.ParseIP("fe80::42:acff:fe11:70")
+	dstIP := net.ParseIP("ff02::2") // all-routers multicast
+
+	opts := buildNDPOption(1, srcMAC) // Source Link-Layer Address
+	rsBody := buildNDPRS(opts)
+	pkt := buildNDPPacket(dstMAC, srcMAC, srcIP, dstIP, rsBody)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("source MAC should be tracked from NDP RS")
+	}
+	if entry.Ipv6Count < 1 {
+		t.Fatalf("expected ipv6_count>=1, got %d", entry.Ipv6Count)
+	}
+	if !containsIPv6(ipv6FromEntry(entry), srcIP) {
+		t.Errorf("source IPv6 %s not found in entry", srcIP)
+	}
+}
+
+func TestNDPRAWithSourceLinkLayerOption(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	routerMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x71}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0x00, 0x00, 0x00, 0x01}
+	routerIP := net.ParseIP("fe80::42:acff:fe11:71")
+	dstIP := net.ParseIP("ff02::1") // all-nodes multicast
+
+	opts := buildNDPOption(1, routerMAC) // Source Link-Layer Address
+	raBody := buildNDPRA(opts)
+	pkt := buildNDPPacket(dstMAC, routerMAC, routerIP, dstIP, raBody)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, routerMAC)
+	if !found {
+		t.Fatal("router MAC should be tracked from NDP RA")
+	}
+	if entry.Ipv6Count < 1 {
+		t.Fatalf("expected ipv6_count>=1, got %d", entry.Ipv6Count)
+	}
+	if !containsIPv6(ipv6FromEntry(entry), routerIP) {
+		t.Errorf("router IPv6 %s not found in entry", routerIP)
+	}
+}
