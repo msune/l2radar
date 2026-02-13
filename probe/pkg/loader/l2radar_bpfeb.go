@@ -8,9 +8,33 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
+
+type l2radarMacKey struct {
+	_    structs.HostLayout
+	Addr [6]uint8
+	Pad  [2]uint8
+}
+
+type l2radarNeighbourEntry struct {
+	_    structs.HostLayout
+	Ipv4 [4]uint32
+	Ipv6 [4]struct {
+		_    structs.HostLayout
+		In6U struct {
+			_       structs.HostLayout
+			U6Addr8 [16]uint8
+		}
+	}
+	Ipv4Count uint8
+	Ipv6Count uint8
+	Pad       [6]uint8
+	FirstSeen uint64
+	LastSeen  uint64
+}
 
 // loadL2radar returns the embedded CollectionSpec for l2radar.
 func loadL2radar() (*ebpf.CollectionSpec, error) {
@@ -61,6 +85,7 @@ type l2radarProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type l2radarMapSpecs struct {
+	Neighbours *ebpf.MapSpec `ebpf:"neighbours"`
 }
 
 // l2radarVariableSpecs contains global variables before they are loaded into the kernel.
@@ -89,10 +114,13 @@ func (o *l2radarObjects) Close() error {
 //
 // It can be passed to loadL2radarObjects or ebpf.CollectionSpec.LoadAndAssign.
 type l2radarMaps struct {
+	Neighbours *ebpf.Map `ebpf:"neighbours"`
 }
 
 func (m *l2radarMaps) Close() error {
-	return _L2radarClose()
+	return _L2radarClose(
+		m.Neighbours,
+	)
 }
 
 // l2radarVariables contains all global variables after they have been loaded into the kernel.
