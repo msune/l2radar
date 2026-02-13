@@ -254,6 +254,25 @@ func TestReturnValueAlwaysUnspec(t *testing.T) {
 	}
 }
 
+func TestUnknownEthertypeNotTracked(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x40, 0x00, 0x01, 0x11, 0x22, 0x33}
+	dstMAC := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
+
+	// Use an unknown ethertype (0x4000 — not IPv4/IPv6/ARP)
+	pkt := buildEthernetFrame(dstMAC, srcMAC, 0x4000, make([]byte, 46))
+	ret := runProgram(t, objs.L2radar, pkt)
+
+	if ret != 0xffffffff {
+		t.Errorf("expected TC_ACT_UNSPEC, got 0x%x", ret)
+	}
+	if _, found := lookupNeighbour(t, objs.Neighbours, srcMAC); found {
+		t.Error("MAC from unknown ethertype should not be tracked")
+	}
+}
+
 // --- ARP Tests ---
 
 func TestARPRequestSenderTracked(t *testing.T) {

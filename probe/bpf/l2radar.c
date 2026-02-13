@@ -361,9 +361,6 @@ int l2radar(struct __sk_buff *skb)
 	if (is_multicast(src_mac) || is_broadcast(src_mac))
 		return TC_ACT_UNSPEC;
 
-	/* Track this unicast MAC */
-	track_mac(src_mac);
-
 	__u16 eth_proto = bpf_ntohs(eth->h_proto);
 	void *l3_start = (void *)(eth + 1);
 
@@ -375,6 +372,23 @@ int l2radar(struct __sk_buff *skb)
 		eth_proto = bpf_ntohs(*(__be16 *)(l3_start + 2));
 		l3_start += 4;
 	}
+
+	/*
+	 * Only track MACs from frames with known ethertypes.
+	 * WiFi drivers can present control/management frames with
+	 * synthetic source MACs that are not real neighbours.
+	 */
+	switch (eth_proto) {
+	case ETH_P_IP:
+	case ETH_P_IPV6:
+	case ETH_P_ARP:
+		break;
+	default:
+		return TC_ACT_UNSPEC;
+	}
+
+	/* Track this unicast MAC */
+	track_mac(src_mac);
 
 	if (eth_proto == ETH_P_ARP)
 		handle_arp(data, data_end, l3_start);
