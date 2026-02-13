@@ -17,10 +17,21 @@ char LICENSE[] SEC("license") = "GPL";
 #define MAX_IPV6 4
 #define ETH_ALEN 6
 #define MAX_ENTRIES 4096
+#define MAX_NDP_OPTIONS 4
 
 /* ARP opcodes */
 #define ARPOP_REQUEST 1
 #define ARPOP_REPLY   2
+
+/* ICMPv6/NDP message types */
+#define ICMPV6_ROUTER_SOLICITATION    133
+#define ICMPV6_ROUTER_ADVERTISEMENT   134
+#define ICMPV6_NEIGHBOUR_SOLICITATION 135
+#define ICMPV6_NEIGHBOUR_ADVERTISEMENT 136
+
+/* NDP option types */
+#define NDP_OPT_SOURCE_LL_ADDR 1
+#define NDP_OPT_TARGET_LL_ADDR 2
 
 /* Map key: MAC address padded to 8 bytes for alignment */
 struct mac_key {
@@ -97,6 +108,69 @@ static __always_inline struct neighbour_entry *track_mac(__u8 *mac)
 	return bpf_map_lookup_elem(&neighbours, &key);
 }
 
+/* ICMPv6 header (first 4 bytes) */
+struct icmp6hdr_minimal {
+	__u8 type;
+	__u8 code;
+	__be16 checksum;
+};
+
+/* NDP NS/NA body (after ICMPv6 header): 4 reserved/flags + 16 target */
+struct ndp_ns_na {
+	__u8  flags_reserved[4];
+	struct in6_addr target;
+};
+
+/* NDP option header */
+struct ndp_opt_hdr {
+	__u8 type;
+	__u8 length; /* in units of 8 bytes */
+};
+
+/* Compare two in6_addr for equality. */
+static __always_inline int in6_addr_equal(const struct in6_addr *a,
+					  const struct in6_addr *b)
+{
+	return a->in6_u.u6_addr32[0] == b->in6_u.u6_addr32[0] &&
+	       a->in6_u.u6_addr32[1] == b->in6_u.u6_addr32[1] &&
+	       a->in6_u.u6_addr32[2] == b->in6_u.u6_addr32[2] &&
+	       a->in6_u.u6_addr32[3] == b->in6_u.u6_addr32[3];
+}
+
+/* Check if an in6_addr is all zeros. */
+static __always_inline int in6_addr_is_zero(const struct in6_addr *a)
+{
+	return (a->in6_u.u6_addr32[0] | a->in6_u.u6_addr32[1] |
+		a->in6_u.u6_addr32[2] | a->in6_u.u6_addr32[3]) == 0;
+}
+
+/*
+ * Add an IPv6 address to a neighbour entry, deduplicating.
+ * Respects the cap of MAX_IPV6.
+ */
+static __always_inline void add_ipv6(struct neighbour_entry *entry,
+				     const struct in6_addr *ip)
+{
+	if (in6_addr_is_zero(ip))
+		return;
+
+	/* Check for duplicates */
+	#pragma unroll
+	for (int i = 0; i < MAX_IPV6; i++) {
+		if (i >= entry->ipv6_count)
+			break;
+		if (in6_addr_equal(&entry->ipv6[i], ip))
+			return;
+	}
+
+	/* Add if not at capacity */
+	if (entry->ipv6_count < MAX_IPV6) {
+		__builtin_memcpy(&entry->ipv6[entry->ipv6_count], ip,
+				 sizeof(struct in6_addr));
+		entry->ipv6_count++;
+	}
+}
+
 /*
  * Add an IPv4 address to a neighbour entry, deduplicating.
  * Respects the cap of MAX_IPV4.
@@ -158,6 +232,98 @@ static __always_inline void handle_arp(void *data, void *data_end,
 	}
 }
 
+/*
+ * Associate a link-layer address from an NDP option with an IPv6 address.
+ * The MAC from the option is tracked and the IPv6 address is added to it.
+ */
+static __always_inline void ndp_associate_ll(void *data_end,
+					     struct ndp_opt_hdr *opt,
+					     const struct in6_addr *ip)
+{
+	/* Option must be at least 8 bytes (length=1) to contain a MAC */
+	if (opt->length < 1)
+		return;
+
+	__u8 *ll_addr = (__u8 *)(opt + 1);
+	if ((void *)(ll_addr + ETH_ALEN) > data_end)
+		return;
+
+	if (is_multicast(ll_addr) || is_broadcast(ll_addr))
+		return;
+
+	struct neighbour_entry *entry = track_mac(ll_addr);
+	if (entry)
+		add_ipv6(entry, ip);
+}
+
+/*
+ * Process NDP packets (NS, NA).
+ * Extract link-layer addresses from NDP options and associate with IPv6.
+ */
+static __always_inline void handle_ndp(void *data, void *data_end,
+				       void *l3_start)
+{
+	struct ipv6hdr *ip6 = l3_start;
+	if ((void *)(ip6 + 1) > data_end)
+		return;
+
+	/* Only handle ICMPv6 */
+	if (ip6->nexthdr != 58) /* IPPROTO_ICMPV6 */
+		return;
+
+	void *icmp_start = (void *)(ip6 + 1);
+	struct icmp6hdr_minimal *icmp = icmp_start;
+	if ((void *)(icmp + 1) > data_end)
+		return;
+
+	__u8 icmp_type = icmp->type;
+
+	/* Only process NDP NS/NA for now */
+	if (icmp_type != ICMPV6_NEIGHBOUR_SOLICITATION &&
+	    icmp_type != ICMPV6_NEIGHBOUR_ADVERTISEMENT)
+		return;
+
+	/* NS/NA body starts after ICMPv6 header (4 bytes) */
+	struct ndp_ns_na *ndp = (struct ndp_ns_na *)((void *)icmp + 4);
+	if ((void *)(ndp + 1) > data_end)
+		return;
+
+	/* Options start after the NS/NA body */
+	void *opt_start = (void *)(ndp + 1);
+
+	/* For NA: associate the target address with the source MAC
+	 * from the TLL option (if present). For unsolicited NA, the
+	 * target address is the address being announced. */
+	struct in6_addr *na_target = NULL;
+	if (icmp_type == ICMPV6_NEIGHBOUR_ADVERTISEMENT)
+		na_target = &ndp->target;
+
+	/* Parse NDP options (bounded loop) */
+	void *opt_ptr = opt_start;
+	#pragma unroll
+	for (int i = 0; i < MAX_NDP_OPTIONS; i++) {
+		struct ndp_opt_hdr *opt = opt_ptr;
+		if ((void *)(opt + 1) > data_end)
+			break;
+		if (opt->length == 0)
+			break;
+
+		__u16 opt_len = (__u16)opt->length * 8;
+
+		if (opt->type == NDP_OPT_SOURCE_LL_ADDR) {
+			/* Associate with IPv6 source address */
+			ndp_associate_ll(data_end, opt, &ip6->saddr);
+		} else if (opt->type == NDP_OPT_TARGET_LL_ADDR && na_target) {
+			/* Associate with the NA target address */
+			ndp_associate_ll(data_end, opt, na_target);
+		}
+
+		opt_ptr += opt_len;
+		if (opt_ptr > data_end)
+			break;
+	}
+}
+
 SEC("tc")
 int l2radar(struct __sk_buff *skb)
 {
@@ -182,6 +348,8 @@ int l2radar(struct __sk_buff *skb)
 
 	if (eth_proto == ETH_P_ARP)
 		handle_arp(data, data_end, l3_start);
+	else if (eth_proto == ETH_P_IPV6)
+		handle_ndp(data, data_end, l3_start);
 
 	return TC_ACT_UNSPEC;
 }

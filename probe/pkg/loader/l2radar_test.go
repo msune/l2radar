@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"testing"
-
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/rlimit"
 )
@@ -376,5 +375,231 @@ func TestARPIPv4Cap(t *testing.T) {
 	}
 	if entry.Ipv4Count != 4 {
 		t.Errorf("expected ipv4_count=4 (capped), got %d", entry.Ipv4Count)
+	}
+}
+
+// --- NDP Helpers ---
+
+// buildIPv6Header constructs a minimal IPv6 header.
+func buildIPv6Header(src, dst net.IP, nextHeader uint8, payloadLen uint16) []byte {
+	hdr := make([]byte, 40)
+	hdr[0] = 0x60 // version 6
+	binary.BigEndian.PutUint16(hdr[4:6], payloadLen)
+	hdr[6] = nextHeader
+	hdr[7] = 255 // hop limit
+	copy(hdr[8:24], src.To16())
+	copy(hdr[24:40], dst.To16())
+	return hdr
+}
+
+// buildNDPOption constructs a single NDP TLV option.
+// optType: 1=Source Link-Layer Address, 2=Target Link-Layer Address
+// length is in units of 8 bytes.
+func buildNDPOption(optType uint8, mac net.HardwareAddr) []byte {
+	opt := make([]byte, 8) // 1 unit = 8 bytes
+	opt[0] = optType
+	opt[1] = 1 // length in 8-byte units
+	copy(opt[2:8], mac)
+	return opt
+}
+
+// buildNDPNS constructs a Neighbor Solicitation ICMPv6 packet body.
+// NS body: type(1) + code(1) + checksum(2) + reserved(4) + target(16) + options
+func buildNDPNS(targetAddr net.IP, options []byte) []byte {
+	body := make([]byte, 8+16+len(options))
+	body[0] = 135 // ICMPv6 type: Neighbor Solicitation
+	body[1] = 0   // code
+	// checksum at [2:4] left as 0 (BPF doesn't validate)
+	// reserved at [4:8]
+	copy(body[8:24], targetAddr.To16())
+	copy(body[24:], options)
+	return body
+}
+
+// buildNDPNA constructs a Neighbor Advertisement ICMPv6 packet body.
+// NA body: type(1) + code(1) + checksum(2) + flags(4) + target(16) + options
+func buildNDPNA(targetAddr net.IP, solicited bool, options []byte) []byte {
+	body := make([]byte, 8+16+len(options))
+	body[0] = 136 // ICMPv6 type: Neighbor Advertisement
+	body[1] = 0
+	if solicited {
+		body[4] = 0x40 // S flag (solicited)
+	} else {
+		body[4] = 0x20 // O flag (override, unsolicited)
+	}
+	copy(body[8:24], targetAddr.To16())
+	copy(body[24:], options)
+	return body
+}
+
+// buildNDPPacket constructs a full Ethernet+IPv6+NDP packet.
+func buildNDPPacket(ethDst, ethSrc net.HardwareAddr, ipSrc, ipDst net.IP,
+	ndpBody []byte) []byte {
+
+	ipv6Hdr := buildIPv6Header(ipSrc, ipDst, 58, uint16(len(ndpBody)))
+	payload := append(ipv6Hdr, ndpBody...)
+	return buildEthernetFrame(ethDst, ethSrc, 0x86DD, payload)
+}
+
+// ipv6FromEntry extracts the active IPv6 addresses from a neighbour entry.
+func ipv6FromEntry(entry *l2radarNeighbourEntry) []net.IP {
+	var ips []net.IP
+	for i := 0; i < int(entry.Ipv6Count); i++ {
+		ip := make(net.IP, 16)
+		copy(ip, entry.Ipv6[i].In6U.U6Addr8[:])
+		ips = append(ips, ip)
+	}
+	return ips
+}
+
+// containsIPv6 checks if an IPv6 address is in the list.
+func containsIPv6(ips []net.IP, target net.IP) bool {
+	t := target.To16()
+	for _, ip := range ips {
+		if ip.Equal(t) {
+			return true
+		}
+	}
+	return false
+}
+
+// --- NDP Tests ---
+
+func TestNDPNSWithSourceLinkLayerOption(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x60}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0xff, 0x11, 0x00, 0x01}
+	srcIP := net.ParseIP("fe80::42:acff:fe11:60")
+	dstIP := net.ParseIP("ff02::1:ff11:1")
+	targetIP := net.ParseIP("fe80::42:acff:fe11:1")
+
+	opts := buildNDPOption(1, srcMAC) // Source Link-Layer Address
+	nsBody := buildNDPNS(targetIP, opts)
+	pkt := buildNDPPacket(dstMAC, srcMAC, srcIP, dstIP, nsBody)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("source MAC should be tracked from NDP NS")
+	}
+	if entry.Ipv6Count < 1 {
+		t.Fatalf("expected ipv6_count>=1, got %d", entry.Ipv6Count)
+	}
+	if !containsIPv6(ipv6FromEntry(entry), srcIP) {
+		t.Errorf("source IPv6 %s not found in entry", srcIP)
+	}
+}
+
+func TestNDPNAUnsolicited(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x61}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0x00, 0x00, 0x00, 0x01}
+	srcIP := net.ParseIP("fe80::42:acff:fe11:61")
+	dstIP := net.ParseIP("ff02::1")
+	targetIP := net.ParseIP("2001:db8::1") // The address being announced
+
+	opts := buildNDPOption(2, srcMAC) // Target Link-Layer Address
+	naBody := buildNDPNA(targetIP, false, opts)
+	pkt := buildNDPPacket(dstMAC, srcMAC, srcIP, dstIP, naBody)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("source MAC should be tracked from unsolicited NA")
+	}
+	// Should have both the IPv6 source and the NA target address
+	if entry.Ipv6Count < 1 {
+		t.Fatalf("expected ipv6_count>=1, got %d", entry.Ipv6Count)
+	}
+	ips := ipv6FromEntry(entry)
+	if !containsIPv6(ips, targetIP) {
+		t.Errorf("NA target IPv6 %s not found in entry", targetIP)
+	}
+}
+
+func TestNDPNASolicited(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x62}
+	dstMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x63}
+	srcIP := net.ParseIP("fe80::42:acff:fe11:62")
+	dstIP := net.ParseIP("fe80::42:acff:fe11:63")
+	targetIP := srcIP // NA target = source
+
+	opts := buildNDPOption(2, srcMAC) // Target Link-Layer Address
+	naBody := buildNDPNA(targetIP, true, opts)
+	pkt := buildNDPPacket(dstMAC, srcMAC, srcIP, dstIP, naBody)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("source MAC should be tracked from solicited NA")
+	}
+	if entry.Ipv6Count < 1 {
+		t.Fatalf("expected ipv6_count>=1, got %d", entry.Ipv6Count)
+	}
+	if !containsIPv6(ipv6FromEntry(entry), targetIP) {
+		t.Errorf("NA target IPv6 %s not found", targetIP)
+	}
+}
+
+func TestNDPIPv6Dedup(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x64}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0xff, 0x11, 0x00, 0x01}
+	srcIP := net.ParseIP("fe80::42:acff:fe11:64")
+	dstIP := net.ParseIP("ff02::1:ff11:1")
+	targetIP := net.ParseIP("fe80::42:acff:fe11:1")
+
+	opts := buildNDPOption(1, srcMAC)
+	nsBody := buildNDPNS(targetIP, opts)
+	pkt := buildNDPPacket(dstMAC, srcMAC, srcIP, dstIP, nsBody)
+
+	// Send twice
+	runProgram(t, objs.L2radar, pkt)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("MAC not found")
+	}
+	if entry.Ipv6Count != 1 {
+		t.Errorf("expected ipv6_count=1 after dedup, got %d", entry.Ipv6Count)
+	}
+}
+
+func TestNDPIPv6Cap(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x65}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0x00, 0x00, 0x00, 0x01}
+	dstIP := net.ParseIP("ff02::1")
+
+	// Send 5 unsolicited NAs with different target IPs
+	for i := 0; i < 5; i++ {
+		srcIP := net.ParseIP("fe80::42:acff:fe11:65")
+		targetIP := net.ParseIP("2001:db8::1")
+		targetIP[15] = byte(i + 1)
+
+		opts := buildNDPOption(2, srcMAC)
+		naBody := buildNDPNA(targetIP, false, opts)
+		pkt := buildNDPPacket(dstMAC, srcMAC, srcIP, dstIP, naBody)
+		runProgram(t, objs.L2radar, pkt)
+	}
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("MAC not found")
+	}
+	if entry.Ipv6Count != 4 {
+		t.Errorf("expected ipv6_count=4 (capped), got %d", entry.Ipv6Count)
 	}
 }
