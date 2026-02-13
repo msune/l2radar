@@ -367,6 +367,15 @@ int l2radar(struct __sk_buff *skb)
 	__u16 eth_proto = bpf_ntohs(eth->h_proto);
 	void *l3_start = (void *)(eth + 1);
 
+	/* Handle 802.1Q VLAN-tagged frames */
+	if (eth_proto == ETH_P_8021Q) {
+		/* VLAN tag: 2 bytes TCI + 2 bytes inner ethertype */
+		if (l3_start + 4 > data_end)
+			return TC_ACT_UNSPEC;
+		eth_proto = bpf_ntohs(*(__be16 *)(l3_start + 2));
+		l3_start += 4;
+	}
+
 	if (eth_proto == ETH_P_ARP)
 		handle_arp(data, data_end, l3_start);
 	else if (eth_proto == ETH_P_IPV6)

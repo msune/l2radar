@@ -27,6 +27,18 @@ func buildEthernetFrame(dst, src net.HardwareAddr, etherType uint16, payload []b
 	return frame
 }
 
+// buildVLANEthernetFrame constructs an 802.1Q-tagged Ethernet frame.
+func buildVLANEthernetFrame(dst, src net.HardwareAddr, vlanID uint16, etherType uint16, payload []byte) []byte {
+	frame := make([]byte, 18+len(payload))
+	copy(frame[0:6], dst)
+	copy(frame[6:12], src)
+	binary.BigEndian.PutUint16(frame[12:14], 0x8100) // TPID
+	binary.BigEndian.PutUint16(frame[14:16], vlanID)  // TCI (PCP=0, DEI=0, VID)
+	binary.BigEndian.PutUint16(frame[16:18], etherType)
+	copy(frame[18:], payload)
+	return frame
+}
+
 // macKey constructs a mac_key struct matching the eBPF map key layout.
 func macKey(mac net.HardwareAddr) l2radarMacKey {
 	var key l2radarMacKey
@@ -680,5 +692,94 @@ func TestNDPRAWithSourceLinkLayerOption(t *testing.T) {
 	}
 	if !containsIPv6(ipv6FromEntry(entry), routerIP) {
 		t.Errorf("router IPv6 %s not found in entry", routerIP)
+	}
+}
+
+// --- 802.1Q VLAN Tests ---
+
+func TestVLANTaggedARPRequest(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	senderMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x80}
+	senderIP := net.ParseIP("192.168.1.100").To4()
+	targetMAC := net.HardwareAddr{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+	targetIP := net.ParseIP("192.168.1.1").To4()
+	broadcast := net.HardwareAddr{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+	// Build ARP payload
+	arp := make([]byte, 28)
+	binary.BigEndian.PutUint16(arp[0:2], 1)     // htype
+	binary.BigEndian.PutUint16(arp[2:4], 0x0800) // ptype
+	arp[4] = 6                                    // hlen
+	arp[5] = 4                                    // plen
+	binary.BigEndian.PutUint16(arp[6:8], 1)      // opcode: request
+	copy(arp[8:14], senderMAC)
+	copy(arp[14:18], senderIP)
+	copy(arp[18:24], targetMAC)
+	copy(arp[24:28], targetIP)
+
+	pkt := buildVLANEthernetFrame(broadcast, senderMAC, 100, 0x0806, arp)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, senderMAC)
+	if !found {
+		t.Fatal("sender MAC should be tracked from VLAN-tagged ARP")
+	}
+	if entry.Ipv4Count != 1 {
+		t.Fatalf("expected ipv4_count=1, got %d", entry.Ipv4Count)
+	}
+	if !containsIPv4(ipv4FromEntry(entry), senderIP) {
+		t.Errorf("sender IP %s not found", senderIP)
+	}
+}
+
+func TestVLANTaggedNDPNS(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x81}
+	dstMAC := net.HardwareAddr{0x33, 0x33, 0xff, 0x11, 0x00, 0x01}
+	srcIP := net.ParseIP("fe80::42:acff:fe11:81")
+	dstIP := net.ParseIP("ff02::1:ff11:1")
+	targetIP := net.ParseIP("fe80::42:acff:fe11:1")
+
+	opts := buildNDPOption(1, srcMAC)
+	nsBody := buildNDPNS(targetIP, opts)
+	ipv6Hdr := buildIPv6Header(srcIP, dstIP, 58, uint16(len(nsBody)))
+	payload := append(ipv6Hdr, nsBody...)
+
+	pkt := buildVLANEthernetFrame(dstMAC, srcMAC, 200, 0x86DD, payload)
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("source MAC should be tracked from VLAN-tagged NDP NS")
+	}
+	if entry.Ipv6Count < 1 {
+		t.Fatalf("expected ipv6_count>=1, got %d", entry.Ipv6Count)
+	}
+	if !containsIPv6(ipv6FromEntry(entry), srcIP) {
+		t.Errorf("source IPv6 %s not found", srcIP)
+	}
+}
+
+func TestVLANTaggedUnicastMACTracked(t *testing.T) {
+	objs, cleanup := loadTestObjects(t)
+	defer cleanup()
+
+	srcMAC := net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x82}
+	dstMAC := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
+
+	// Non-ARP/NDP VLAN-tagged frame
+	pkt := buildVLANEthernetFrame(dstMAC, srcMAC, 300, 0x0800, make([]byte, 46))
+	runProgram(t, objs.L2radar, pkt)
+
+	entry, found := lookupNeighbour(t, objs.Neighbours, srcMAC)
+	if !found {
+		t.Fatal("unicast MAC should be tracked from VLAN-tagged frame")
+	}
+	if entry.Ipv4Count != 0 {
+		t.Errorf("expected ipv4_count=0, got %d", entry.Ipv4Count)
 	}
 }
