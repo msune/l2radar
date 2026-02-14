@@ -90,6 +90,12 @@ func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts t
 		return fmt.Errorf("closing temp file: %w", err)
 	}
 
+	// Make world-readable so nginx (unprivileged) can serve the file.
+	if err := os.Chmod(tmpName, 0644); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("setting file permissions: %w", err)
+	}
+
 	if err := os.Rename(tmpName, outPath); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("renaming temp file: %w", err)

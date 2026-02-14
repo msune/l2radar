@@ -220,6 +220,28 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 	}
 }
 
+func TestWriteJSONFilePermissions(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+
+	err := WriteJSON("eth0", nil, dir, now)
+	if err != nil {
+		t.Fatalf("WriteJSON failed: %v", err)
+	}
+
+	outPath := filepath.Join(dir, "neigh-eth0.json")
+	info, err := os.Stat(outPath)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+
+	// File must be world-readable (0644) so nginx can serve it.
+	perm := info.Mode().Perm()
+	if perm != 0644 {
+		t.Errorf("expected permissions 0644, got %04o", perm)
+	}
+}
+
 func TestOutputFileName(t *testing.T) {
 	if got := OutputFileName("eth0"); got != "neigh-eth0.json" {
 		t.Errorf("expected neigh-eth0.json, got %s", got)
