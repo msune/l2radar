@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  /* Radar dark palette */
+  --color-radar-950: #0a0e17;
+  --color-radar-900: #0f1623;
+  --color-radar-800: #162032;
+  --color-radar-700: #1e2d45;
+  --color-radar-600: #2a3f5f;
+  --color-radar-500: #3d5a80;
+  --color-radar-400: #5b7faa;
+  --color-radar-300: #89a8cc;
+  --color-radar-200: #b8cee6;
+  --color-radar-100: #dce6f2;
+
+  /* Accent: cyan/teal for active/highlight */
+  --color-accent-500: #06b6d4;
+  --color-accent-400: #22d3ee;
+  --color-accent-300: #67e8f9;
+
+  /* Status colours */
+  --color-online: #34d399;
+  --color-stale: #fbbf24;
+  --color-offline: #6b7280;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-radar-950);
+  color: var(--color-radar-100);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
