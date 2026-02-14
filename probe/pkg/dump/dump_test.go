@@ -142,3 +142,80 @@ func TestPinPath(t *testing.T) {
 		t.Errorf("unexpected pin path: %s", path)
 	}
 }
+
+func TestKtimeToTimeBasic(t *testing.T) {
+	// Simulate: wall clock is 14:30:00, system has been up for 1 hour.
+	// An event at ktime=30min should map to 13:30 + 30min = 14:00.
+	wallTime := time.Date(2026, 2, 14, 14, 30, 0, 0, time.UTC)
+	uptimeNs := int64(1 * 60 * 60 * 1e9) // 1 hour
+
+	origTimeNow := timeNow
+	origMonoNow := monoNow
+	defer func() { timeNow = origTimeNow; monoNow = origMonoNow }()
+
+	timeNow = func() time.Time { return wallTime }
+	monoNow = func() int64 { return uptimeNs }
+
+	thirtyMinNs := uint64(30 * 60 * 1e9)
+	got := ktimeToTime(thirtyMinNs)
+	expected := time.Date(2026, 2, 14, 14, 0, 0, 0, time.UTC)
+
+	if got.Sub(expected).Abs() > time.Second {
+		t.Errorf("expected %v, got %v", expected, got)
+	}
+}
+
+func TestKtimeToTimeZero(t *testing.T) {
+	got := ktimeToTime(0)
+	if !got.IsZero() {
+		t.Errorf("expected zero time for ktime=0, got %v", got)
+	}
+}
+
+func TestKtimeToTimeStableAcrossRuns(t *testing.T) {
+	// Simulate two dump invocations 10 minutes apart.
+	// The same ktime value must produce the same wall-clock time.
+	origTimeNow := timeNow
+	origMonoNow := monoNow
+	defer func() { timeNow = origTimeNow; monoNow = origMonoNow }()
+
+	firstSeenKtime := uint64(1800 * 1e9) // 30 min after boot
+
+	// First dump: system up 1 hour, wall clock 14:00
+	timeNow = func() time.Time { return time.Date(2026, 2, 14, 14, 0, 0, 0, time.UTC) }
+	monoNow = func() int64 { return int64(3600 * 1e9) }
+	first := ktimeToTime(firstSeenKtime)
+
+	// Second dump: system up 1h10m, wall clock 14:10
+	timeNow = func() time.Time { return time.Date(2026, 2, 14, 14, 10, 0, 0, time.UTC) }
+	monoNow = func() int64 { return int64(4200 * 1e9) }
+	second := ktimeToTime(firstSeenKtime)
+
+	if first.Sub(second).Abs() > time.Second {
+		t.Errorf("first_seen should be stable across runs: first=%v, second=%v", first, second)
+	}
+}
+
+func TestKtimeToTimeFirstAndLastSeenDiffer(t *testing.T) {
+	// first_seen and last_seen with different ktime values must produce
+	// different wall-clock times.
+	origTimeNow := timeNow
+	origMonoNow := monoNow
+	defer func() { timeNow = origTimeNow; monoNow = origMonoNow }()
+
+	timeNow = func() time.Time { return time.Date(2026, 2, 14, 14, 30, 0, 0, time.UTC) }
+	monoNow = func() int64 { return int64(3600 * 1e9) }
+
+	firstSeenKtime := uint64(1800 * 1e9)  // 30 min after boot
+	lastSeenKtime := uint64(3500 * 1e9)   // ~58 min after boot
+
+	firstSeen := ktimeToTime(firstSeenKtime)
+	lastSeen := ktimeToTime(lastSeenKtime)
+
+	diff := lastSeen.Sub(firstSeen)
+	expectedDiff := time.Duration(lastSeenKtime-firstSeenKtime) * time.Nanosecond
+
+	if (diff - expectedDiff).Abs() > time.Second {
+		t.Errorf("difference between first/last seen should be %v, got %v", expectedDiff, diff)
+	}
+}

@@ -11,6 +11,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/cilium/ebpf"
 )
 
@@ -68,34 +70,33 @@ func PinPath(pinBase, iface string) string {
 	return filepath.Join(pinBase, fmt.Sprintf("neigh-%s", iface))
 }
 
+// timeNow and monoNow are overridable for testing.
+var (
+	timeNow = time.Now
+	monoNow = defaultMonoNow
+)
+
+// defaultMonoNow returns nanoseconds since boot via CLOCK_MONOTONIC.
+func defaultMonoNow() int64 {
+	var ts unix.Timespec
+	if err := unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts); err != nil {
+		return 0
+	}
+	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
+}
+
 // ktimeToTime converts a ktime_get_ns value to a wall-clock time.
-// ktime is monotonic nanoseconds since boot. We approximate wall-clock
-// by computing the offset from the current monotonic clock.
+// ktime is monotonic nanoseconds since boot. We derive the boot instant
+// by subtracting the current CLOCK_MONOTONIC from the wall clock.
 func ktimeToTime(ktime uint64) time.Time {
 	if ktime == 0 {
 		return time.Time{}
 	}
-	// time.Now() gives wall clock; its monotonic component gives us the offset
-	now := time.Now()
-	// Use the monotonic clock reading to compute the delta
-	bootTime := now.Add(-time.Duration(monoNow()))
+	now := timeNow()
+	mono := monoNow()
+	bootTime := now.Add(-time.Duration(mono))
 	return bootTime.Add(time.Duration(ktime))
 }
-
-// monoNow returns the current monotonic time in nanoseconds.
-// We approximate this using time.Since on a zero-valued time constructed
-// at init. A simpler approach: read /proc/uptime or use clock_gettime,
-// but for our purposes time.Now()'s monotonic component suffices.
-func monoNow() int64 {
-	// time.Now() includes a monotonic reading; we can extract the
-	// elapsed monotonic time by computing time.Since(baseMono).
-	return time.Since(baseMono).Nanoseconds()
-}
-
-var baseMono = func() time.Time {
-	// This captures a time.Time with a monotonic reading at init.
-	return time.Now()
-}()
 
 // ReadMap opens a pinned BPF map and reads all neighbour entries.
 func ReadMap(pinPath string) ([]Neighbour, error) {
