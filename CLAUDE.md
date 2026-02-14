@@ -38,26 +38,16 @@ The architecture has the following components:
    The program MUST NOT assume regular unicast IPv4/IPv6 can be used to deduce
    IP addresses, as intermediate routers can exist. The eBPF map must be
    read-only by any user.
-2. A Go CLI tool to load, attach, and manage the eBPF programs.
-3. A graphical user interface to display the neighbours. The UI needs to be
-   in a form of Dashboard, with a modern design. It also has to comply with
-   the following characteristics:
-  - The Web UI must use HTTPs and a basic Authentication. Username and
-    password should be passed as a configuration file to the UI.
-  - The Web UI should be built as a client-side application only, rendering
-    the contents of the JSON file with the contents of the eBPF Map, served by
-    the same webserver.
-  - The Web UI needs to be packaged in a docker container, where the eBPF
-    map will be mounted (read-only).
+2. A Go CLI tool (`l2radar`) that attaches the eBPF programs to interfaces,
+   optionally exports JSON, and provides a `dump` subcommand for inspection.
+3. A web-based dashboard to display the neighbours. Runs in a separate
+   container from the probe(s). Multiple probes can feed a single UI
+   instance via a shared volume of JSON files.
 
 ### Tech stack
 
 - eBPF C programs for passive monitoring
-- For the webui:
-  - ngninx as webserver.
-  - Use react and tailwind for the client-side UI parts
-  - Use best tool to read the eBPF map, convert it into JSON and have ngninx
-    serve it.
+- Web UI: React + Tailwind CSS, built with Vite, served by nginx
 - Golang for any command-line tool (if needed)
 
 ### eBPF Component — Detailed Requirements
@@ -131,10 +121,32 @@ probe/
 - Signal handling (SIGINT/SIGTERM) for clean detach + unpin
 - Structured logging via slog
 
-#### Map Dump Tool
+#### CLI Interface
 
-- The CLI must support a `dump` subcommand that reads the pinned eBPF map
-  for a given interface and prints the neighbour table to the terminal.
+- **Default mode** (no subcommand): attach eBPF probes to the specified
+  interfaces and keep running until SIGINT/SIGTERM.
+- Usage: `l2radar --iface <name> [--iface <name>...] [--pin-path <path>]
+  [--export-dir <dir>] [--export-interval <duration>]`
+- Flags:
+  - `--iface` (repeatable, required): network interface to monitor.
+    The special value `any` means **all L2 interfaces except loopbacks**
+    (enumerate via `net.Interfaces()`, skip those with `net.FlagLoopback`).
+  - `--pin-path`: base path for pinning eBPF maps (default
+    `/sys/fs/bpf/l2radar`).
+  - `--export-dir` (optional): if set, periodically export JSON files to
+    this directory. When not set, the probe only attaches and populates
+    the BPF map — no JSON files are written.
+  - `--export-interval`: export frequency (default `5s`). Only meaningful
+    when `--export-dir` is set.
+- When `--export-dir` is set, the probe writes one JSON file per interface
+  to the specified directory, named `neigh-<iface>.json`. Uses atomic
+  writes (temp file + rename) so nginx never serves partial files.
+- Signal handling (SIGINT/SIGTERM) for clean detach, unpin, and shutdown.
+
+#### `dump` Subcommand
+
+- The only subcommand. Reads the pinned eBPF map for a given interface
+  and prints the neighbour table to the terminal.
 - Usage: `l2radar dump --iface <name> [--pin-path <path>]`
 - Opens the pinned map at `<pin-path>/neigh-<iface>` (read-only, no
   privileges required beyond map pin permissions).
@@ -154,15 +166,130 @@ probe/
   - Build stage: `golang:1.24-bookworm` with `clang` and `libbpf-dev`.
     Runs `go generate` (bpf2go) and builds a static Go binary.
   - Runtime stage: `debian:bookworm-slim`. Contains only the static binary.
-- Entrypoint: `["/l2radar"]` — exposes the full subcommand interface
-  (`attach`, `dump`).
+- Entrypoint: `["/l2radar"]` — the default mode attaches probes; `dump`
+  is the only subcommand.
 - Runtime requirements:
-  - `--privileged` and `--network=host` for `attach` (BPF syscalls + host
-    interface access).
-  - `-v /sys/fs/bpf:/sys/fs/bpf` to pin maps readable from the host.
-  - `dump` requires `--cap-add=BPF` (the `bpf()` syscall is needed to open
+  - Default mode: `--privileged` and `--network=host` (BPF syscalls +
+    host interface access). `-v /sys/fs/bpf:/sys/fs/bpf` to pin maps.
+    Optionally `-v /tmp/l2radar:/tmp/l2radar` when using `--export-dir`.
+  - `dump`: `--cap-add=BPF` (the `bpf()` syscall is needed to open
     pinned maps) and the bpffs mount (read-only).
 - Files: `probe/Dockerfile`, `probe/.dockerignore`.
+
+#### JSON Export
+
+- Export is **not** a separate subcommand. It is enabled by passing
+  `--export-dir` to the default mode.
+- Output directory: one JSON file per interface, named
+  `neigh-<iface>.json` (mirrors the bpffs pin naming).
+- Export interval: configurable via `--export-interval` (default `5s`).
+- JSON schema per file:
+  ```json
+  {
+    "interface": "<iface>",
+    "timestamp": "<RFC3339>",
+    "neighbours": [
+      {
+        "mac": "aa:bb:cc:dd:ee:ff",
+        "ipv4": ["192.168.1.1"],
+        "ipv6": ["fe80::1"],
+        "first_seen": "<RFC3339>",
+        "last_seen": "<RFC3339>"
+      }
+    ]
+  }
+  ```
+- Signal handling (SIGINT/SIGTERM) for clean shutdown.
+- Requires `CAP_BPF` and bpffs mount (same as `dump`).
+
+### Web UI Component — Detailed Requirements
+
+#### Architecture
+
+- **Separate container** from the probe. Unprivileged (no BPF access).
+- Probe(s) write JSON files to a shared volume (`/tmp/l2radar/`).
+  The UI container mounts this volume read-only.
+- Multiple probes (on different hosts or interfaces) can write to the
+  same shared directory; the UI aggregates all JSON files.
+- nginx serves both the static React SPA and the JSON data files.
+
+#### Directory Structure
+
+```
+ui/
+├── src/
+│   ├── components/       # React components
+│   ├── App.jsx
+│   ├── index.jsx
+│   └── index.css         # Tailwind directives
+├── public/
+├── index.html
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+├── nginx/
+│   ├── nginx.conf        # Main nginx config
+│   └── default.conf      # Site config (TLS, auth, proxy)
+├── entrypoint.sh         # TLS cert generation, htpasswd setup
+├── Dockerfile
+└── .dockerignore
+```
+
+#### Dashboard Features
+
+- **Combined view** (default): single table showing all neighbours across
+  all interfaces, with an "Interface" column.
+- **Per-interface filter**: dropdown or tabs to filter by interface.
+- **Summary statistics**: total neighbours, count per interface, neighbours
+  seen in the last 5 minutes.
+- **Search/filter**: filter by MAC address or IP address (partial match).
+- **Sortable columns**: MAC, IPv4, IPv6, first seen, last seen. Default
+  sort by last seen (most recent first).
+- **Auto-refresh**: client polls JSON files using `If-Modified-Since`.
+  Poll interval matches the export interval. nginx returns `304 Not Modified`
+  when the file hasn't changed.
+- **Modern design**:
+  - State-of-the-art design trends: clean, compact layout with minimal
+    excessive margins and paddings. Prioritize information density.
+  - Custom colour scheme (dark-themed, network/radar aesthetic).
+  - Fully responsive: must work on phones, tablets, and desktops.
+    Table adapts to small screens (e.g., card layout on mobile).
+  - Built with Tailwind CSS.
+
+#### HTTPS / TLS
+
+- If the user mounts certificate and key files at the standard nginx
+  SSL path (`/etc/nginx/ssl/cert.pem`, `/etc/nginx/ssl/key.pem`), nginx
+  uses them.
+- If no certificates are mounted, the entrypoint script generates a
+  self-signed certificate at container startup.
+- nginx listens on port 443 (HTTPS). HTTP on port 80 redirects to HTTPS.
+
+#### Authentication
+
+- nginx `auth_basic` with htpasswd.
+- Credentials are provided via a YAML config file mounted into the
+  container (e.g., `/etc/l2radar/auth.yaml`):
+  ```yaml
+  users:
+    - username: admin
+      password: changeme
+  ```
+- The entrypoint script reads the YAML file and generates an htpasswd
+  file for nginx. Passwords are stored bcrypt-hashed.
+
+#### Container Packaging
+
+- Multi-stage build:
+  - Build stage: `node:22-alpine`. Runs `npm install` and `npm run build`
+    to produce static assets.
+  - Runtime stage: `nginx:alpine`. Contains static assets and nginx config.
+- Entrypoint: `entrypoint.sh` (TLS setup, htpasswd generation, nginx start).
+- Runtime mounts:
+  - `/tmp/l2radar/` (read-only) — shared volume with JSON files from probe(s).
+  - `/etc/l2radar/auth.yaml` (read-only) — authentication credentials.
+  - `/etc/nginx/ssl/` (optional, read-only) — TLS certificate and key.
+- Ports: 443 (HTTPS), 80 (HTTP redirect).
 
 #### CI Pipeline (GitHub Actions)
 
@@ -177,6 +304,10 @@ probe/
      Only on push (not PR). Authenticates via `GITHUB_TOKEN`.
      - Tags: `latest` when on main, `<branch>` for other branches.
      - On version tags (`v*`): tag with the version (e.g., `v1.0.0`).
+- UI image (`ghcr.io/${{ github.repository_owner }}/l2radar-ui`):
+  - **test**: `npm test` (unit tests for React components).
+  - **build**: Build Docker image via `docker build`.
+  - **publish**: Same tagging strategy as probe image.
 
 ### Constraints
 
