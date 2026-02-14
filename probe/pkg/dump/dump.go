@@ -76,18 +76,20 @@ var (
 	monoNow = defaultMonoNow
 )
 
-// defaultMonoNow returns nanoseconds since boot via CLOCK_MONOTONIC.
+// defaultMonoNow returns nanoseconds since boot via CLOCK_BOOTTIME.
+// This matches bpf_ktime_get_boot_ns() used in the BPF program, which
+// includes time spent suspended (unlike CLOCK_MONOTONIC).
 func defaultMonoNow() int64 {
 	var ts unix.Timespec
-	if err := unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts); err != nil {
+	if err := unix.ClockGettime(unix.CLOCK_BOOTTIME, &ts); err != nil {
 		return 0
 	}
 	return int64(ts.Sec)*1e9 + int64(ts.Nsec)
 }
 
-// ktimeToTime converts a ktime_get_ns value to a wall-clock time.
-// ktime is monotonic nanoseconds since boot. We derive the boot instant
-// by subtracting the current CLOCK_MONOTONIC from the wall clock.
+// ktimeToTime converts a bpf_ktime_get_boot_ns value to wall-clock time.
+// ktime is CLOCK_BOOTTIME nanoseconds since boot (including suspend).
+// We derive the boot instant by subtracting CLOCK_BOOTTIME from wall clock.
 func ktimeToTime(ktime uint64) time.Time {
 	if ktime == 0 {
 		return time.Time{}

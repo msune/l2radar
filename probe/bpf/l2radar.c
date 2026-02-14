@@ -91,7 +91,7 @@ static __always_inline struct neighbour_entry *track_mac(__u8 *mac)
 	struct mac_key key = {};
 	__builtin_memcpy(key.addr, mac, ETH_ALEN);
 
-	__u64 now = bpf_ktime_get_ns();
+	__u64 now = bpf_ktime_get_boot_ns();
 
 	struct neighbour_entry *entry = bpf_map_lookup_elem(&neighbours, &key);
 	if (entry) {
