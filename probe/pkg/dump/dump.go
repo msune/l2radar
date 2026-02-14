@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/marc/l2radar/probe/pkg/oui"
 	"text/tabwriter"
 	"time"
 
@@ -172,8 +174,13 @@ func FormatTable(w io.Writer, neighbours []Neighbour) {
 			lastSeen = n.LastSeen.Format("2006-01-02 15:04:05")
 		}
 
+		macStr := n.MAC.String()
+		if vendor := oui.Lookup(n.MAC); vendor != "" {
+			macStr += " (" + vendor + ")"
+		}
+
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-			n.MAC.String(),
+			macStr,
 			n.IPv4String(),
 			n.IPv6String(),
 			firstSeen,

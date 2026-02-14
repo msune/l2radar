@@ -49,13 +49,15 @@ func TestFormatTable(t *testing.T) {
 
 	neighbours := []Neighbour{
 		{
-			MAC:       net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x01},
+			// 28:6F:B9 = Nokia Shanghai Bell Co., Ltd.
+			MAC:       net.HardwareAddr{0x28, 0x6f, 0xb9, 0x11, 0x00, 0x01},
 			IPv4:      []net.IP{net.ParseIP("192.168.1.1").To4()},
 			IPv6:      []net.IP{net.ParseIP("fe80::1")},
 			FirstSeen: earlier,
 			LastSeen:  now,
 		},
 		{
+			// Locally administered MAC — no OUI entry
 			MAC:       net.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x02},
 			IPv4:      nil,
 			IPv6:      nil,
@@ -86,11 +88,27 @@ func TestFormatTable(t *testing.T) {
 	}
 
 	// Should contain our MACs
-	if !strings.Contains(output, "02:42:ac:11:00:01") {
+	if !strings.Contains(output, "28:6f:b9:11:00:01") {
 		t.Error("table should contain first MAC")
 	}
 	if !strings.Contains(output, "02:42:ac:11:00:02") {
 		t.Error("table should contain second MAC")
+	}
+
+	// Should contain vendor name for known OUI
+	if !strings.Contains(output, "(Nokia Shanghai Bell") {
+		t.Errorf("table should contain vendor name for Nokia OUI, got:\n%s", output)
+	}
+
+	// Unknown OUI should not have parentheses
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "02:42:ac:11:00:02") {
+			if strings.Contains(line, "(") {
+				t.Error("unknown OUI should not have vendor in parentheses")
+			}
+			break
+		}
 	}
 
 	// Should contain IP
