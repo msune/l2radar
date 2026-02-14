@@ -74,6 +74,18 @@ describe('NeighbourTable', () => {
     expect(screen.getAllByText(/Nokia Shanghai Bell/).length).toBeGreaterThan(0)
   })
 
+  it('hides Interface column when showInterface is false', () => {
+    render(<NeighbourTable neighbours={mockData} showInterface={false} />)
+    const table = screen.getByRole('table')
+    expect(within(table).queryByText('Interface')).toBeNull()
+  })
+
+  it('shows Interface column by default', () => {
+    render(<NeighbourTable neighbours={mockData} />)
+    const table = screen.getByRole('table')
+    expect(within(table).getByText('Interface')).toBeInTheDocument()
+  })
+
   it('toggles sort direction on same column click', () => {
     render(<NeighbourTable neighbours={mockData} />)
     const table = screen.getByRole('table')

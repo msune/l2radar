@@ -24,7 +24,10 @@ function SortIndicator({ active, dir }) {
   )
 }
 
-function NeighbourTable({ neighbours }) {
+function NeighbourTable({ neighbours, showInterface = true }) {
+  const columns = showInterface
+    ? COLUMNS
+    : COLUMNS.filter((c) => c.key !== 'interface')
   const [sortKey, setSortKey] = useState('lastSeen')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -46,7 +49,7 @@ function NeighbourTable({ neighbours }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-radar-700">
-              {COLUMNS.map((col) => (
+              {columns.map((col) => (
                 <th
                   key={col.key}
                   className="text-left px-2 py-2 text-radar-400 font-medium cursor-pointer select-none hover:text-accent-400"
@@ -69,7 +72,9 @@ function NeighbourTable({ neighbours }) {
                   i % 2 === 0 ? 'bg-radar-950' : 'bg-radar-900/30'
                 }`}
               >
-                <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
+                {showInterface && (
+                  <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
+                )}
                 <td className="px-2 py-1.5 font-mono text-accent-300">
                   {n.mac}
                   {lookupOUI(n.mac) && (
@@ -119,7 +124,9 @@ function NeighbourTable({ neighbours }) {
                   </div>
                 )}
               </div>
-              <span className="text-xs text-radar-500">{n.interface}</span>
+              {showInterface && (
+                <span className="text-xs text-radar-500">{n.interface}</span>
+              )}
             </div>
             {n.ipv4.length > 0 && (
               <div className="text-xs font-mono text-radar-200">

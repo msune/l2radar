@@ -47,7 +47,7 @@ function App() {
           search={search}
           onSearchChange={setSearch}
         />
-        <NeighbourTable neighbours={filtered} />
+        <NeighbourTable neighbours={filtered} showInterface={!selectedInterface} />
       </main>
     </div>
   )
