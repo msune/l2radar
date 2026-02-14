@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { sortNeighbours } from '../lib/sorting'
+import { lookupOUI } from '../lib/ouiLookup'
 
 const COLUMNS = [
   { key: 'interface', label: 'Interface' },
@@ -71,6 +72,11 @@ function NeighbourTable({ neighbours }) {
                 <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
                 <td className="px-2 py-1.5 font-mono text-accent-300">
                   {n.mac}
+                  {lookupOUI(n.mac) && (
+                    <span className="text-radar-500 text-xs ml-1">
+                      ({lookupOUI(n.mac)})
+                    </span>
+                  )}
                 </td>
                 <td className="px-2 py-1.5 font-mono">
                   {n.ipv4.join(', ') || '—'}
@@ -103,9 +109,16 @@ function NeighbourTable({ neighbours }) {
             className="bg-radar-900 border border-radar-700 rounded p-3"
           >
             <div className="flex justify-between items-start mb-1">
-              <span className="font-mono text-accent-300 text-sm">
-                {n.mac}
-              </span>
+              <div>
+                <span className="font-mono text-accent-300 text-sm">
+                  {n.mac}
+                </span>
+                {lookupOUI(n.mac) && (
+                  <div className="text-radar-500 text-xs">
+                    {lookupOUI(n.mac)}
+                  </div>
+                )}
+              </div>
               <span className="text-xs text-radar-500">{n.interface}</span>
             </div>
             {n.ipv4.length > 0 && (

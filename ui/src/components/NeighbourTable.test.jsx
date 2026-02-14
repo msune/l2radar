@@ -58,6 +58,22 @@ describe('NeighbourTable', () => {
     expect(within(rows[2]).getByText('aa:bb:cc:dd:ee:02')).toBeInTheDocument()
   })
 
+  it('displays vendor name for known OUI prefix', () => {
+    const data = [
+      {
+        interface: 'eth0',
+        // 28:6f:b9 = Nokia Shanghai Bell Co., Ltd.
+        mac: '28:6f:b9:11:22:33',
+        ipv4: [],
+        ipv6: [],
+        firstSeen: '2026-02-14T14:00:00Z',
+        lastSeen: '2026-02-14T14:30:00Z',
+      },
+    ]
+    render(<NeighbourTable neighbours={data} />)
+    expect(screen.getAllByText(/Nokia Shanghai Bell/).length).toBeGreaterThan(0)
+  })
+
   it('toggles sort direction on same column click', () => {
     render(<NeighbourTable neighbours={mockData} />)
     const table = screen.getByRole('table')
