@@ -269,9 +269,12 @@ ui/
 - **Combined view** (default): single table showing all neighbours across
   all interfaces, with an "Interface" column.
 - **Interface tabs**: one "All" tab showing all interfaces, plus one tab
-  per interface. Per-interface tabs display an information section above
-  the search bar showing last update timestamp, the interface's MAC
-  address, and assigned IPv4/IPv6 addresses.
+  per interface. Per-interface tabs hide the redundant "Interface" column
+  from the table and display an information section above the search bar
+  with fields in this order: interface name, MAC address, IPv4 addresses,
+  IPv6 addresses, last update. The last update field shows a live
+  relative time (e.g., "2 seconds ago") that updates continuously in the
+  browser, with the absolute timestamp shown on hover (via title attr).
 - **Summary statistics**: total neighbours, count per interface, neighbours
   seen in the last 5 minutes.
 - **Search/filter**: filter by MAC address or IP address (partial match).
