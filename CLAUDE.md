@@ -66,10 +66,14 @@ probe/
 │   └── l2radar/
 │       └── main.go       # CLI entrypoint
 ├── pkg/
-│   └── loader/
-│       ├── loader.go     # Load, attach, pin logic
-│       ├── loader_test.go
-│       └── generate.go   # //go:generate bpf2go directive
+│   ├── loader/
+│   │   ├── loader.go     # Load, attach, pin logic
+│   │   ├── loader_test.go
+│   │   └── generate.go   # //go:generate bpf2go directive
+│   └── oui/
+│       ├── oui.go        # OUI lookup from IEEE MA-L database
+│       ├── oui_test.go
+│       └── oui.txt       # Cached IEEE OUI database (MA-L)
 ├── go.mod
 └── go.sum
 ```
@@ -124,6 +128,22 @@ probe/
 - Signal handling (SIGINT/SIGTERM) for clean detach + unpin
 - Structured logging via slog
 
+#### OUI Vendor Lookup
+
+- Package: `probe/pkg/oui/`
+- Uses the IEEE MA-L (OUI) database to resolve the first 3 bytes of a
+  MAC address to a vendor name.
+- The OUI database file (`oui.txt`) is cached in the repository at
+  `probe/pkg/oui/oui.txt` and embedded into the Go binary via
+  `//go:embed`. Source: `https://standards-oui.ieee.org/oui/oui.txt`.
+- Provides a `Lookup(mac net.HardwareAddr) string` function that returns
+  the vendor name or an empty string if not found.
+- Used by the `dump` subcommand (terminal output) to display vendor
+  names next to MAC addresses.
+- The UI ships its own copy of the OUI database and resolves vendor
+  names client-side. The JSON export does **not** include vendor names
+  — OUI lookup is a display concern only.
+
 #### CLI Interface
 
 - **Default mode** (no subcommand): attach eBPF probes to the specified
@@ -154,7 +174,8 @@ probe/
 - Opens the pinned map at `<pin-path>/neigh-<iface>` (read-only, no
   privileges required beyond map pin permissions).
 - Output: a formatted table with columns:
-  - MAC address
+  - MAC address with OUI vendor name in parentheses
+    (e.g., `dc:4b:a1:69:38:16 (Apple Inc.)`)
   - IPv4 addresses (comma-separated)
   - IPv6 addresses (comma-separated)
   - First seen (human-readable timestamp)
@@ -255,6 +276,10 @@ ui/
   seen in the last 5 minutes.
 - **Search/filter**: filter by MAC address or IP address (partial match).
   Present on all tabs (All and per-interface).
+- **OUI vendor names**: MAC addresses are displayed with the OUI vendor
+  name in parentheses (e.g., `dc:4b:a1:69:38:16 (Apple Inc.)`). The UI
+  ships a copy of the IEEE OUI database and resolves vendor names
+  client-side from the MAC address prefix.
 - **Sortable columns**: MAC, IPv4, IPv6, first seen, last seen. Default
   sort by last seen (most recent first).
 - **Auto-refresh**: client polls JSON files using `If-Modified-Since`.
