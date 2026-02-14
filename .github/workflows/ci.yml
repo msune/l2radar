@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  test-probe:
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -40,9 +40,29 @@ jobs:
             exit 1
           fi
 
-  build:
+  test-ui:
     runs-on: ubuntu-24.04
-    needs: test
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  build-probe:
+    runs-on: ubuntu-24.04
+    needs: test-probe
     steps:
       - uses: actions/checkout@v4
 
@@ -53,9 +73,22 @@ jobs:
           push: false
           tags: l2radar:ci
 
+  build-ui:
+    runs-on: ubuntu-24.04
+    needs: test-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ui
+          push: false
+          tags: l2radar-ui:ci
+
   publish:
     runs-on: ubuntu-24.04
-    needs: build
+    needs: [build-probe, build-ui]
     if: github.event_name == 'push'
     permissions:
       contents: read
@@ -73,26 +106,35 @@ jobs:
       - name: Determine image tags
         id: tags
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/l2radar"
-          TAGS=""
+          PROBE_IMAGE="ghcr.io/${{ github.repository_owner }}/l2radar"
+          UI_IMAGE="ghcr.io/${{ github.repository_owner }}/l2radar-ui"
 
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # Version tag (e.g., v1.0.0)
             VERSION="${GITHUB_REF_NAME}"
-            TAGS="${IMAGE}:${VERSION}"
+            PROBE_TAGS="${PROBE_IMAGE}:${VERSION}"
+            UI_TAGS="${UI_IMAGE}:${VERSION}"
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            TAGS="${IMAGE}:latest"
+            PROBE_TAGS="${PROBE_IMAGE}:latest"
+            UI_TAGS="${UI_IMAGE}:latest"
           else
-            # Branch name (sanitize for Docker tag)
             BRANCH="$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')"
-            TAGS="${IMAGE}:${BRANCH}"
+            PROBE_TAGS="${PROBE_IMAGE}:${BRANCH}"
+            UI_TAGS="${UI_IMAGE}:${BRANCH}"
           fi
 
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "probe_tags=${PROBE_TAGS}" >> "$GITHUB_OUTPUT"
+          echo "ui_tags=${UI_TAGS}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push Docker image
+      - name: Build and push probe image
         uses: docker/build-push-action@v6
         with:
           context: probe
           push: true
-          tags: ${{ steps.tags.outputs.tags }}
+          tags: ${{ steps.tags.outputs.probe_tags }}
+
+      - name: Build and push UI image
+        uses: docker/build-push-action@v6
+        with:
+          context: ui
+          push: true
+          tags: ${{ steps.tags.outputs.ui_tags }}
