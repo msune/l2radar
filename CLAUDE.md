@@ -164,6 +164,20 @@ probe/
     pinned maps) and the bpffs mount (read-only).
 - Files: `probe/Dockerfile`, `probe/.dockerignore`.
 
+#### CI Pipeline (GitHub Actions)
+
+- File: `.github/workflows/ci.yml`
+- Trigger: push to any branch + pull requests.
+- Runner: `ubuntu-24.04` (kernel 6.8+, supports TCX and BPF).
+- Jobs:
+  1. **test**: Install Go 1.24, clang, llvm, libbpf-dev. Run `go generate`
+     then `sudo go test` — BPF tests MUST NOT be skipped.
+  2. **build**: Build Docker image via `docker build`.
+  3. **publish**: Push to `ghcr.io/${{ github.repository_owner }}/l2radar`.
+     Only on push (not PR). Authenticates via `GITHUB_TOKEN`.
+     - Tags: `latest` when on main, `<branch>` for other branches.
+     - On version tags (`v*`): tag with the version (e.g., `v1.0.0`).
+
 ### Constraints
 
 - All components MUST have unit tests and they must pass.
