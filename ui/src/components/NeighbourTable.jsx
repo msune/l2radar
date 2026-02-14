@@ -1,0 +1,137 @@
+import { useState } from 'react'
+import { sortNeighbours } from '../lib/sorting'
+
+const COLUMNS = [
+  { key: 'interface', label: 'Interface' },
+  { key: 'mac', label: 'MAC' },
+  { key: 'ipv4', label: 'IPv4' },
+  { key: 'ipv6', label: 'IPv6' },
+  { key: 'firstSeen', label: 'First Seen' },
+  { key: 'lastSeen', label: 'Last Seen' },
+]
+
+function formatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleString()
+}
+
+function SortIndicator({ active, dir }) {
+  if (!active) return <span className="text-radar-600 ml-1">&#x2195;</span>
+  return (
+    <span className="text-accent-400 ml-1">{dir === 'asc' ? '▲' : '▼'}</span>
+  )
+}
+
+function NeighbourTable({ neighbours }) {
+  const [sortKey, setSortKey] = useState('lastSeen')
+  const [sortDir, setSortDir] = useState('desc')
+
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'lastSeen' || key === 'firstSeen' ? 'desc' : 'asc')
+    }
+  }
+
+  const sorted = sortNeighbours(neighbours, sortKey, sortDir)
+
+  return (
+    <>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-radar-700">
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className="text-left px-2 py-2 text-radar-400 font-medium cursor-pointer select-none hover:text-accent-400"
+                  onClick={() => handleSort(col.key)}
+                >
+                  {col.label}
+                  <SortIndicator
+                    active={sortKey === col.key}
+                    dir={sortDir}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((n, i) => (
+              <tr
+                key={`${n.interface}-${n.mac}`}
+                className={`border-b border-radar-800 hover:bg-radar-900 ${
+                  i % 2 === 0 ? 'bg-radar-950' : 'bg-radar-900/30'
+                }`}
+              >
+                <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
+                <td className="px-2 py-1.5 font-mono text-accent-300">
+                  {n.mac}
+                </td>
+                <td className="px-2 py-1.5 font-mono">
+                  {n.ipv4.join(', ') || '—'}
+                </td>
+                <td className="px-2 py-1.5 font-mono text-xs">
+                  {n.ipv6.join(', ') || '—'}
+                </td>
+                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap">
+                  {formatTime(n.firstSeen)}
+                </td>
+                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap">
+                  {formatTime(n.lastSeen)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {sorted.length === 0 && (
+          <p className="text-center text-radar-500 py-8">
+            No neighbours found
+          </p>
+        )}
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {sorted.map((n) => (
+          <div
+            key={`${n.interface}-${n.mac}-mobile`}
+            className="bg-radar-900 border border-radar-700 rounded p-3"
+          >
+            <div className="flex justify-between items-start mb-1">
+              <span className="font-mono text-accent-300 text-sm">
+                {n.mac}
+              </span>
+              <span className="text-xs text-radar-500">{n.interface}</span>
+            </div>
+            {n.ipv4.length > 0 && (
+              <div className="text-xs font-mono text-radar-200">
+                {n.ipv4.join(', ')}
+              </div>
+            )}
+            {n.ipv6.length > 0 && (
+              <div className="text-xs font-mono text-radar-300 break-all">
+                {n.ipv6.join(', ')}
+              </div>
+            )}
+            <div className="flex justify-between text-xs text-radar-500 mt-2">
+              <span>First: {formatTime(n.firstSeen)}</span>
+              <span>Last: {formatTime(n.lastSeen)}</span>
+            </div>
+          </div>
+        ))}
+        {sorted.length === 0 && (
+          <p className="text-center text-radar-500 py-8">
+            No neighbours found
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
+export default NeighbourTable
