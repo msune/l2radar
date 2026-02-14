@@ -15,11 +15,14 @@ Rules:
 - When developing new code, use the Test Driven Development (TDD) pattern,
   and follow this strict order:
   1. Red phase: create unit tests. Tests must be exhaustive and must fail.
+     Tests must compile and run — failures must be assertion failures, not
+     undefined variables, missing imports, or missing glue code.
   2. Green phase: implement the feature, making sure that all tests pass.
   3. Refactor: refactor code if necessary.
 - When implementing use git. Create a good incremental commit structure
   for every feature, module, etc. being developed
 - Git commits: scoped, clear message (what and why)
+- Do not amend or rebase commits unless explicitly told to do so.
 
 Assume production-quality standards.
 
