@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: probe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: probe/go.sum
+
+      - name: Install BPF build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang llvm libbpf-dev linux-libc-dev gcc-multilib
+
+      - name: Generate BPF bindings
+        run: go generate ./pkg/loader/
+
+      - name: Run tests
+        id: tests
+        run: sudo go test -v -count=1 ./... 2>&1 | tee test-output.txt
+
+      - name: Verify BPF tests were not skipped
+        run: |
+          if grep -q 'skipping: insufficient privileges' test-output.txt; then
+            echo "ERROR: BPF tests were skipped due to insufficient privileges"
+            exit 1
+          fi
+
+  build:
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: probe
+          push: false
+          tags: l2radar:ci
+
+  publish:
+    runs-on: ubuntu-24.04
+    needs: build
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image tags
+        id: tags
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/l2radar"
+          TAGS=""
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # Version tag (e.g., v1.0.0)
+            VERSION="${GITHUB_REF_NAME}"
+            TAGS="${IMAGE}:${VERSION}"
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            TAGS="${IMAGE}:latest"
+          else
+            # Branch name (sanitize for Docker tag)
+            BRANCH="$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')"
+            TAGS="${IMAGE}:${BRANCH}"
+          fi
+
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: probe
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
