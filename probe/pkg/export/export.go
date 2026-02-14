@@ -3,12 +3,53 @@ package export
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/marc/l2radar/probe/pkg/dump"
 )
+
+// InterfaceInfo holds the monitored interface's own addresses.
+type InterfaceInfo struct {
+	MAC  net.HardwareAddr
+	IPv4 []net.IP
+	IPv6 []net.IP
+}
+
+// LookupInterfaceInfo returns the MAC and IP addresses of a network interface.
+func LookupInterfaceInfo(name string) (*InterfaceInfo, error) {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("looking up interface %s: %w", name, err)
+	}
+
+	info := &InterfaceInfo{
+		MAC:  iface.HardwareAddr,
+		IPv4: []net.IP{},
+		IPv6: []net.IP{},
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, fmt.Errorf("listing addresses for %s: %w", name, err)
+	}
+
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		if v4 := ipNet.IP.To4(); v4 != nil {
+			info.IPv4 = append(info.IPv4, v4)
+		} else {
+			info.IPv6 = append(info.IPv6, ipNet.IP)
+		}
+	}
+
+	return info, nil
+}
 
 // NeighbourJSON is the JSON representation of a neighbour entry.
 type NeighbourJSON struct {
@@ -23,15 +64,31 @@ type NeighbourJSON struct {
 type InterfaceData struct {
 	Interface  string          `json:"interface"`
 	Timestamp  string          `json:"timestamp"`
+	MAC        string          `json:"mac"`
+	IPv4       []string        `json:"ipv4"`
+	IPv6       []string        `json:"ipv6"`
 	Neighbours []NeighbourJSON `json:"neighbours"`
 }
 
 // NewInterfaceData converts dump.Neighbour entries to the JSON export format.
-func NewInterfaceData(iface string, ts time.Time, neighbours []dump.Neighbour) InterfaceData {
+// ifInfo may be nil if the interface's own addresses are unavailable.
+func NewInterfaceData(iface string, ts time.Time, neighbours []dump.Neighbour, ifInfo *InterfaceInfo) InterfaceData {
 	data := InterfaceData{
 		Interface:  iface,
 		Timestamp:  ts.UTC().Format(time.RFC3339),
+		IPv4:       []string{},
+		IPv6:       []string{},
 		Neighbours: make([]NeighbourJSON, 0, len(neighbours)),
+	}
+
+	if ifInfo != nil {
+		data.MAC = ifInfo.MAC.String()
+		for _, ip := range ifInfo.IPv4 {
+			data.IPv4 = append(data.IPv4, ip.String())
+		}
+		for _, ip := range ifInfo.IPv6 {
+			data.IPv6 = append(data.IPv6, ip.String())
+		}
 	}
 
 	for _, n := range neighbours {
@@ -61,9 +118,9 @@ func OutputFileName(iface string) string {
 
 // WriteJSON writes the neighbour data for an interface to a JSON file
 // in the given output directory. The write is atomic (temp file + rename)
-// so readers never see a partial file.
-func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts time.Time) error {
-	data := NewInterfaceData(iface, ts, neighbours)
+// so readers never see a partial file. ifInfo may be nil.
+func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts time.Time, ifInfo *InterfaceInfo) error {
+	data := NewInterfaceData(iface, ts, neighbours, ifInfo)
 
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

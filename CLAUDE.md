@@ -191,6 +191,9 @@ probe/
   {
     "interface": "<iface>",
     "timestamp": "<RFC3339>",
+    "mac": "aa:bb:cc:dd:ee:ff",
+    "ipv4": ["192.168.1.10"],
+    "ipv6": ["fe80::1"],
     "neighbours": [
       {
         "mac": "aa:bb:cc:dd:ee:ff",
@@ -202,6 +205,8 @@ probe/
     ]
   }
   ```
+  The top-level `mac`, `ipv4`, and `ipv6` fields are the monitored
+  interface's own addresses (looked up via `net.InterfaceByName`).
 - Signal handling (SIGINT/SIGTERM) for clean shutdown.
 - Requires `CAP_BPF` and bpffs mount (same as `dump`).
 
@@ -242,10 +247,14 @@ ui/
 
 - **Combined view** (default): single table showing all neighbours across
   all interfaces, with an "Interface" column.
-- **Per-interface filter**: dropdown or tabs to filter by interface.
+- **Interface tabs**: one "All" tab showing all interfaces, plus one tab
+  per interface. Per-interface tabs display an information section above
+  the search bar showing last update timestamp, the interface's MAC
+  address, and assigned IPv4/IPv6 addresses.
 - **Summary statistics**: total neighbours, count per interface, neighbours
   seen in the last 5 minutes.
 - **Search/filter**: filter by MAC address or IP address (partial match).
+  Present on all tabs (All and per-interface).
 - **Sortable columns**: MAC, IPv4, IPv6, first seen, last seen. Default
   sort by last seen (most recent first).
 - **Auto-refresh**: client polls JSON files using `If-Modified-Since`.

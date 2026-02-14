@@ -93,27 +93,69 @@ describe('parseInterfaceData', () => {
 
 describe('mergeNeighbours', () => {
   it('merges both golden files', () => {
-    const merged = mergeNeighbours([eth0Data, wlan0Data])
+    const { neighbours } = mergeNeighbours([eth0Data, wlan0Data])
     // eth0: 4, wlan0: 3
-    expect(merged).toHaveLength(7)
+    expect(neighbours).toHaveLength(7)
   })
 
   it('preserves interface tags after merge', () => {
-    const merged = mergeNeighbours([eth0Data, wlan0Data])
-    const eth0Count = merged.filter((n) => n.interface === 'eth0').length
-    const wlan0Count = merged.filter((n) => n.interface === 'wlan0').length
+    const { neighbours } = mergeNeighbours([eth0Data, wlan0Data])
+    const eth0Count = neighbours.filter((n) => n.interface === 'eth0').length
+    const wlan0Count = neighbours.filter((n) => n.interface === 'wlan0').length
     expect(eth0Count).toBe(4)
     expect(wlan0Count).toBe(3)
   })
 
   it('same MAC on different interfaces appears as separate entries', () => {
-    const merged = mergeNeighbours([eth0Data, wlan0Data])
-    const sameMac = merged.filter((n) => n.mac === 'dc:4b:a1:69:38:16')
+    const { neighbours } = mergeNeighbours([eth0Data, wlan0Data])
+    const sameMac = neighbours.filter((n) => n.mac === 'dc:4b:a1:69:38:16')
     expect(sameMac).toHaveLength(2)
     expect(sameMac.map((n) => n.interface).sort()).toEqual(['eth0', 'wlan0'])
   })
 
   it('handles empty array', () => {
-    expect(mergeNeighbours([])).toEqual([])
+    const { neighbours, timestamps, interfaceInfo } = mergeNeighbours([])
+    expect(neighbours).toEqual([])
+    expect(timestamps).toEqual({})
+    expect(interfaceInfo).toEqual({})
+  })
+
+  it('returns per-interface timestamps', () => {
+    const { timestamps } = mergeNeighbours([eth0Data, wlan0Data])
+    expect(timestamps).toEqual({
+      eth0: eth0Data.timestamp,
+      wlan0: wlan0Data.timestamp,
+    })
+  })
+
+  it('returns timestamps even for interfaces with no neighbours', () => {
+    const emptyIface = { interface: 'br0', timestamp: '2026-02-14T15:00:00Z', neighbours: [] }
+    const { neighbours, timestamps } = mergeNeighbours([emptyIface])
+    expect(neighbours).toEqual([])
+    expect(timestamps).toEqual({ br0: '2026-02-14T15:00:00Z' })
+  })
+
+  it('returns per-interface info with mac and addresses', () => {
+    const { interfaceInfo } = mergeNeighbours([eth0Data, wlan0Data])
+    expect(interfaceInfo.eth0).toEqual({
+      mac: eth0Data.mac,
+      ipv4: eth0Data.ipv4,
+      ipv6: eth0Data.ipv6,
+    })
+    expect(interfaceInfo.wlan0).toEqual({
+      mac: wlan0Data.mac,
+      ipv4: wlan0Data.ipv4,
+      ipv6: wlan0Data.ipv6,
+    })
+  })
+
+  it('defaults interface info arrays to empty when missing', () => {
+    const minimal = { interface: 'br0', timestamp: '2026-02-14T15:00:00Z', neighbours: [] }
+    const { interfaceInfo } = mergeNeighbours([minimal])
+    expect(interfaceInfo.br0).toEqual({
+      mac: '',
+      ipv4: [],
+      ipv6: [],
+    })
   })
 })

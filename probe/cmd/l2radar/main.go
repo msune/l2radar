@@ -199,7 +199,12 @@ func exportAll(ifaces []string, pinPath, outputDir string, logger *slog.Logger) 
 
 		dump.SortByLastSeen(neighbours)
 
-		if err := export.WriteJSON(iface, neighbours, outputDir, time.Now()); err != nil {
+		ifInfo, err := export.LookupInterfaceInfo(iface)
+		if err != nil {
+			logger.Warn("failed to lookup interface info", "interface", iface, "error", err)
+		}
+
+		if err := export.WriteJSON(iface, neighbours, outputDir, time.Now(), ifInfo); err != nil {
 			logger.Error("failed to write JSON", "interface", iface, "error", err)
 			continue
 		}

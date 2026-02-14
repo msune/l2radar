@@ -1,6 +1,9 @@
 {
   "interface": "wlan0",
   "timestamp": "2026-02-14T14:30:01Z",
+  "mac": "a0:b1:c2:d3:e4:f5",
+  "ipv4": ["10.0.0.50"],
+  "ipv6": ["fe80::a2b1:c2ff:fed3:e4f5"],
   "neighbours": [
     {
       "mac": "f0:de:f1:23:45:67",

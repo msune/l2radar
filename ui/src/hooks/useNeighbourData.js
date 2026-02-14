@@ -10,6 +10,8 @@ const DEFAULT_POLL_INTERVAL = 5000
  */
 export function useNeighbourData(pollInterval = DEFAULT_POLL_INTERVAL) {
   const [neighbours, setNeighbours] = useState([])
+  const [timestamps, setTimestamps] = useState({})
+  const [interfaceInfo, setInterfaceInfo] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const lastModifiedRef = useRef({})
@@ -29,6 +31,8 @@ export function useNeighbourData(pollInterval = DEFAULT_POLL_INTERVAL) {
 
       if (jsonFiles.length === 0) {
         setNeighbours([])
+        setTimestamps({})
+        setInterfaceInfo({})
         setLoading(false)
         return
       }
@@ -79,7 +83,10 @@ export function useNeighbourData(pollInterval = DEFAULT_POLL_INTERVAL) {
             allData.push(await resp.json())
           }
         }
-        setNeighbours(mergeNeighbours(allData))
+        const merged = mergeNeighbours(allData)
+        setNeighbours(merged.neighbours)
+        setTimestamps(merged.timestamps)
+        setInterfaceInfo(merged.interfaceInfo)
       }
 
       setError(null)
@@ -96,5 +103,5 @@ export function useNeighbourData(pollInterval = DEFAULT_POLL_INTERVAL) {
     return () => clearInterval(id)
   }, [fetchData, pollInterval])
 
-  return { neighbours, loading, error }
+  return { neighbours, timestamps, interfaceInfo, loading, error }
 }

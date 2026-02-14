@@ -19,11 +19,24 @@ export function parseInterfaceData(data) {
 
 /**
  * Merge neighbour arrays from multiple interfaces into a single array.
+ * Returns { neighbours, timestamps, interfaceInfo } where:
+ * - timestamps maps interface name to the probe's export timestamp
+ * - interfaceInfo maps interface name to { mac, ipv4, ipv6 }
  */
 export function mergeNeighbours(interfaceDataArray) {
-  const result = []
+  const neighbours = []
+  const timestamps = {}
+  const interfaceInfo = {}
   for (const data of interfaceDataArray) {
-    result.push(...parseInterfaceData(data))
+    neighbours.push(...parseInterfaceData(data))
+    if (data.timestamp) {
+      timestamps[data.interface] = data.timestamp
+    }
+    interfaceInfo[data.interface] = {
+      mac: data.mac || '',
+      ipv4: data.ipv4 || [],
+      ipv6: data.ipv6 || [],
+    }
   }
-  return result
+  return { neighbours, timestamps, interfaceInfo }
 }

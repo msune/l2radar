@@ -4,9 +4,11 @@ import { filterNeighbours, getInterfaces } from './lib/filter'
 import SummaryStats from './components/SummaryStats'
 import NeighbourTable from './components/NeighbourTable'
 import SearchBar from './components/SearchBar'
+import InterfaceTabs from './components/InterfaceTabs'
+import InterfaceInfo from './components/InterfaceInfo'
 
 function App() {
-  const { neighbours, loading, error } = useNeighbourData()
+  const { neighbours, timestamps, interfaceInfo, loading, error } = useNeighbourData()
   const [search, setSearch] = useState('')
   const [selectedInterface, setSelectedInterface] = useState('')
 
@@ -29,12 +31,21 @@ function App() {
       </header>
       <main className="p-4 max-w-screen-2xl mx-auto">
         <SummaryStats neighbours={filtered} />
-        <SearchBar
-          search={search}
-          onSearchChange={setSearch}
+        <InterfaceTabs
           interfaces={interfaces}
           selectedInterface={selectedInterface}
           onInterfaceChange={setSelectedInterface}
+        />
+        {selectedInterface && (
+          <InterfaceInfo
+            name={selectedInterface}
+            timestamp={timestamps[selectedInterface]}
+            info={interfaceInfo[selectedInterface]}
+          />
+        )}
+        <SearchBar
+          search={search}
+          onSearchChange={setSearch}
         />
         <NeighbourTable neighbours={filtered} />
       </main>

@@ -22,8 +22,13 @@ func TestInterfaceDataJSON(t *testing.T) {
 			LastSeen:  time.Date(2026, 2, 14, 14, 32, 18, 0, time.UTC),
 		},
 	}
+	ifInfo := &InterfaceInfo{
+		MAC:  net.HardwareAddr{0xaa, 0xbb, 0xcc, 0x00, 0x11, 0x22},
+		IPv4: []net.IP{net.ParseIP("192.168.1.10").To4()},
+		IPv6: []net.IP{net.ParseIP("fe80::aabb:ccff:fe00:1122")},
+	}
 
-	data := NewInterfaceData("eth0", now, neighbours)
+	data := NewInterfaceData("eth0", now, neighbours, ifInfo)
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -40,6 +45,15 @@ func TestInterfaceDataJSON(t *testing.T) {
 	}
 	if parsed.Timestamp != "2026-02-14T14:30:00Z" {
 		t.Errorf("expected timestamp 2026-02-14T14:30:00Z, got %s", parsed.Timestamp)
+	}
+	if parsed.MAC != "aa:bb:cc:00:11:22" {
+		t.Errorf("expected MAC aa:bb:cc:00:11:22, got %s", parsed.MAC)
+	}
+	if len(parsed.IPv4) != 1 || parsed.IPv4[0] != "192.168.1.10" {
+		t.Errorf("unexpected interface IPv4: %v", parsed.IPv4)
+	}
+	if len(parsed.IPv6) != 1 || parsed.IPv6[0] != "fe80::aabb:ccff:fe00:1122" {
+		t.Errorf("unexpected interface IPv6: %v", parsed.IPv6)
 	}
 	if len(parsed.Neighbours) != 1 {
 		t.Fatalf("expected 1 neighbour, got %d", len(parsed.Neighbours))
@@ -64,7 +78,7 @@ func TestInterfaceDataJSON(t *testing.T) {
 
 func TestEmptyNeighbours(t *testing.T) {
 	now := time.Date(2026, 2, 14, 14, 0, 0, 0, time.UTC)
-	data := NewInterfaceData("eth0", now, nil)
+	data := NewInterfaceData("eth0", now, nil, nil)
 
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -82,6 +96,16 @@ func TestEmptyNeighbours(t *testing.T) {
 	if len(parsed.Neighbours) != 0 {
 		t.Errorf("expected 0 neighbours, got %d", len(parsed.Neighbours))
 	}
+	// With nil InterfaceInfo, MAC should be empty and IP arrays should be empty
+	if parsed.MAC != "" {
+		t.Errorf("expected empty MAC, got %s", parsed.MAC)
+	}
+	if parsed.IPv4 == nil {
+		t.Error("ipv4 should be empty array, not null")
+	}
+	if parsed.IPv6 == nil {
+		t.Error("ipv6 should be empty array, not null")
+	}
 }
 
 func TestNeighbourNoIPs(t *testing.T) {
@@ -96,7 +120,7 @@ func TestNeighbourNoIPs(t *testing.T) {
 		},
 	}
 
-	data := NewInterfaceData("eth0", now, neighbours)
+	data := NewInterfaceData("eth0", now, neighbours, nil)
 	b, err := json.Marshal(data)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -126,7 +150,7 @@ func TestTimestampFormatRFC3339(t *testing.T) {
 		},
 	}
 
-	data := NewInterfaceData("eth0", ts, neighbours)
+	data := NewInterfaceData("eth0", ts, neighbours, nil)
 	b, err := json.Marshal(data)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -160,7 +184,7 @@ func TestWriteJSONAtomicCreatesFile(t *testing.T) {
 		},
 	}
 
-	err := WriteJSON("eth0", neighbours, dir, now)
+	err := WriteJSON("eth0", neighbours, dir, now, nil)
 	if err != nil {
 		t.Fatalf("WriteJSON failed: %v", err)
 	}
@@ -189,7 +213,7 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 	now := time.Now()
 
 	// Write first version
-	err := WriteJSON("eth0", nil, dir, now)
+	err := WriteJSON("eth0", nil, dir, now, nil)
 	if err != nil {
 		t.Fatalf("first WriteJSON failed: %v", err)
 	}
@@ -202,7 +226,7 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 			LastSeen:  now,
 		},
 	}
-	err = WriteJSON("eth0", neighbours, dir, now)
+	err = WriteJSON("eth0", neighbours, dir, now, nil)
 	if err != nil {
 		t.Fatalf("second WriteJSON failed: %v", err)
 	}
@@ -224,7 +248,7 @@ func TestWriteJSONFilePermissions(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Now()
 
-	err := WriteJSON("eth0", nil, dir, now)
+	err := WriteJSON("eth0", nil, dir, now, nil)
 	if err != nil {
 		t.Fatalf("WriteJSON failed: %v", err)
 	}
@@ -280,6 +304,20 @@ func TestGoldenFileSchema(t *testing.T) {
 			}
 			if _, err := time.Parse(time.RFC3339, data.Timestamp); err != nil {
 				t.Errorf("timestamp not RFC3339: %s", data.Timestamp)
+			}
+
+			// Validate interface address fields
+			if data.MAC == "" {
+				t.Error("golden file must have top-level mac field")
+			}
+			if _, err := net.ParseMAC(data.MAC); err != nil {
+				t.Errorf("invalid interface MAC %q: %v", data.MAC, err)
+			}
+			if data.IPv4 == nil {
+				t.Error("interface ipv4 should be empty array, not null")
+			}
+			if data.IPv6 == nil {
+				t.Error("interface ipv6 should be empty array, not null")
 			}
 
 			// Validate each neighbour
