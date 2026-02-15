@@ -50,6 +50,10 @@ ui/
   sort by last seen (most recent first).
 - **Auto-refresh**: polls JSON with `If-Modified-Since`. nginx returns
   304 when unchanged.
+- **Freshness highlights**: when last update (JSON), last seen, or a
+  new neighbour row changes, briefly highlight with a brighter color
+  then fade back (~5s CSS transition). Rows with last seen > 5 min ago
+  are dimmed (reduced opacity) compared to fresh rows.
 - **Design**: dark-themed, compact layout, information-dense. Fully
   responsive (card layout on mobile). Tailwind CSS.
 
