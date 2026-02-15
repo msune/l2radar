@@ -82,7 +82,8 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ui
+          context: .
+          file: ui/Dockerfile
           push: false
           tags: l2radar-ui:ci
 
@@ -135,6 +136,7 @@ jobs:
       - name: Build and push UI image
         uses: docker/build-push-action@v6
         with:
-          context: ui
+          context: .
+          file: ui/Dockerfile
           push: true
           tags: ${{ steps.tags.outputs.ui_tags }}
