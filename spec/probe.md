@@ -118,6 +118,16 @@ probe/
   "mac": "aa:bb:cc:dd:ee:ff",
   "ipv4": ["192.168.1.10"],
   "ipv6": ["fe80::1"],
+  "stats": {
+    "tx_bytes": 123456,
+    "rx_bytes": 789012,
+    "tx_packets": 1000,
+    "rx_packets": 2000,
+    "tx_errors": 0,
+    "rx_errors": 0,
+    "tx_dropped": 0,
+    "rx_dropped": 0
+  },
   "neighbours": [
     {
       "mac": "aa:bb:cc:dd:ee:ff",
@@ -132,6 +142,13 @@ probe/
 
 Top-level `mac`, `ipv4`, `ipv6` are the monitored interface's own
 addresses (via `net.InterfaceByName`).
+
+### Interface Stats
+
+The `stats` object contains kernel interface counters read from
+`/sys/class/net/<iface>/statistics/` at export time. All values are
+`uint64`. The field is `null` when stats are unavailable (e.g.,
+interface not found).
 
 ## Container Packaging
 

@@ -38,7 +38,9 @@ ui/
   above the search bar with fields in order: interface name, MAC, IPv4,
   IPv6, last update. Last update shows live relative time (e.g.,
   "2 seconds ago") updating continuously, absolute timestamp on hover
-  (title attr).
+  (title attr). Below the fields, a collapsible "Interface Stats" row
+  (collapsed by default) shows kernel TX/RX counters: bytes, packets,
+  errors, and dropped. Bytes are human-readable (KB/MB/GB).
 - **Summary statistics**: total neighbours, count per interface,
   neighbours seen in the last 5 minutes.
 - **Search/filter**: filter by MAC or IP (partial match). Present on
