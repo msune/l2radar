@@ -30,7 +30,7 @@ function SplashScreen({ onDone }) {
       <img
         src={logoSplash}
         alt="L2 Radar"
-        className="max-w-[45vw] max-h-[45vh] w-auto h-auto object-contain rounded-2xl"
+        className="max-w-[60vw] lg:max-w-[45vw] max-h-[60vh] lg:max-h-[45vh] w-auto h-auto object-contain rounded-2xl"
       />
     </div>
   )
