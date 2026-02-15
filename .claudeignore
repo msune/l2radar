@@ -1,0 +1,16 @@
+# Binary & image assets
+assets/
+
+# OUI databases (1.4MB each, machine-generated)
+probe/pkg/oui/oui.json
+ui/src/lib/oui.json
+
+# Lock files
+ui/package-lock.json
+
+# Build artifacts & dependencies
+ui/node_modules/
+ui/dist/
+
+# Swap files
+*.swp
