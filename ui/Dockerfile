@@ -18,8 +18,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY assets/icons/ /usr/share/nginx/html/
 COPY ui/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY ui/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY ui/nginx/http-plain.conf /etc/nginx/http-plain.conf
 COPY ui/entrypoint.sh /entrypoint.sh
 
-EXPOSE 80 443
+EXPOSE 443
 
 ENTRYPOINT ["/entrypoint.sh"]

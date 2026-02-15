@@ -34,6 +34,15 @@ else
     htpasswd -cbB "$HTPASSWD" "admin" "changeme"
 fi
 
+# Enable plain HTTP on port 80 if --enable-http is passed
+for arg in "$@"; do
+    if [ "$arg" = "--enable-http" ]; then
+        cp /etc/nginx/http-plain.conf /etc/nginx/conf.d/http-plain.conf
+        echo "Plain HTTP (port 80) enabled"
+        break
+    fi
+done
+
 # Create data directory if it doesn't exist
 mkdir -p /tmp/l2radar
 
