@@ -58,9 +58,26 @@ function App() {
         </div>
       </main>
       <footer className="bg-radar-800 px-4 py-2 text-center text-xs text-radar-500">
-        © {new Date().getFullYear()} L2 Radar · Made with ❤️ from Barcelona ·{' '}
+        © {new Date().getFullYear()}{' '}
+	<a
+	  href="https://github.com/msune/l2radar"
+	  target="_blank"
+	  rel="noopener noreferrer"
+          className="text-accent-400 hover:text-accent-300"
+	>
+	  L2 Radar
+	</a>,
+	powered by{' '}
+	<a
+	  href="https://ebpf.io/"
+	  target="_blank"
+	  rel="noopener noreferrer"
+	>
+	  🐝
+	</a> 
+	· Made with ❤️  from Barcelona ·{' '}
         <a
-          href="https://github.com/msune/l2radar"
+          href="https://github.com/msune"
           target="_blank"
           rel="noopener noreferrer"
           className="text-accent-400 hover:text-accent-300"
