@@ -62,7 +62,7 @@ func TestAttachAndClose(t *testing.T) {
 
 	probe, err := Attach(iface, pinBase, nil)
 	if err != nil {
-		t.Skipf("cannot attach (likely missing privileges): %v", err)
+		t.Fatalf("attach failed: %v", err)
 	}
 	defer probe.Close()
 

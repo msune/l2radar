@@ -29,14 +29,21 @@ jobs:
       - name: Generate BPF bindings
         run: go generate ./pkg/loader/
 
+      - name: Create test interface
+        run: |
+          sudo ip link add l2r-test type veth peer name l2r-peer
+          sudo ip link set l2r-test up
+          sudo ip link set l2r-peer up
+
       - name: Run tests
         id: tests
-        run: sudo go test -v -count=1 ./... 2>&1 | tee test-output.txt
+        run: sudo L2RADAR_TEST_IFACE=l2r-test go test -v -count=1 ./... 2>&1 | tee test-output.txt
 
-      - name: Verify BPF tests were not skipped
+      - name: Verify no tests were skipped
         run: |
-          if grep -q 'skipping: insufficient privileges' test-output.txt; then
-            echo "ERROR: BPF tests were skipped due to insufficient privileges"
+          if grep -q '--- SKIP' test-output.txt; then
+            echo "ERROR: Some tests were skipped:"
+            grep '--- SKIP' test-output.txt
             exit 1
           fi
 
