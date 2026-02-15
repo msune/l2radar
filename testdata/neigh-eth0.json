@@ -5,6 +5,16 @@
   "mac": "de:ad:be:ef:00:01",
   "ipv4": ["192.168.1.10"],
   "ipv6": ["fe80::dcad:beff:feef:1"],
+  "stats": {
+    "tx_bytes": 1234567,
+    "rx_bytes": 7890123,
+    "tx_packets": 10000,
+    "rx_packets": 20000,
+    "tx_errors": 0,
+    "rx_errors": 0,
+    "tx_dropped": 0,
+    "rx_dropped": 0
+  },
   "neighbours": [
     {
       "mac": "dc:4b:a1:69:38:16",

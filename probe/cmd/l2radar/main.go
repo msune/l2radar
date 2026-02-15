@@ -204,7 +204,12 @@ func exportAll(ifaces []string, pinPath, outputDir string, interval time.Duratio
 			logger.Warn("failed to lookup interface info", "interface", iface, "error", err)
 		}
 
-		if err := export.WriteJSON(iface, neighbours, outputDir, time.Now(), interval, ifInfo); err != nil {
+		ifStats, err := export.LookupInterfaceStats(iface)
+		if err != nil {
+			logger.Warn("failed to lookup interface stats", "interface", iface, "error", err)
+		}
+
+		if err := export.WriteJSON(iface, neighbours, outputDir, time.Now(), interval, ifInfo, ifStats); err != nil {
 			logger.Error("failed to write JSON", "interface", iface, "error", err)
 			continue
 		}

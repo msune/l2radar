@@ -27,8 +27,18 @@ func TestInterfaceDataJSON(t *testing.T) {
 		IPv4: []net.IP{net.ParseIP("192.168.1.10").To4()},
 		IPv6: []net.IP{net.ParseIP("fe80::aabb:ccff:fe00:1122")},
 	}
+	stats := &InterfaceStats{
+		TxBytes:   123456,
+		RxBytes:   789012,
+		TxPackets: 1000,
+		RxPackets: 2000,
+		TxErrors:  1,
+		RxErrors:  2,
+		TxDropped: 3,
+		RxDropped: 4,
+	}
 
-	data := NewInterfaceData("eth0", now, 5*time.Second, neighbours, ifInfo)
+	data := NewInterfaceData("eth0", now, 5*time.Second, neighbours, ifInfo, stats)
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -77,11 +87,66 @@ func TestInterfaceDataJSON(t *testing.T) {
 	if n.LastSeen != "2026-02-14T14:32:18Z" {
 		t.Errorf("expected last_seen 2026-02-14T14:32:18Z, got %s", n.LastSeen)
 	}
+
+	// Verify stats round-trip
+	if parsed.Stats == nil {
+		t.Fatal("expected stats to be present")
+	}
+	if parsed.Stats.TxBytes != 123456 {
+		t.Errorf("expected tx_bytes 123456, got %d", parsed.Stats.TxBytes)
+	}
+	if parsed.Stats.RxBytes != 789012 {
+		t.Errorf("expected rx_bytes 789012, got %d", parsed.Stats.RxBytes)
+	}
+	if parsed.Stats.TxPackets != 1000 {
+		t.Errorf("expected tx_packets 1000, got %d", parsed.Stats.TxPackets)
+	}
+	if parsed.Stats.RxPackets != 2000 {
+		t.Errorf("expected rx_packets 2000, got %d", parsed.Stats.RxPackets)
+	}
+	if parsed.Stats.TxErrors != 1 {
+		t.Errorf("expected tx_errors 1, got %d", parsed.Stats.TxErrors)
+	}
+	if parsed.Stats.RxErrors != 2 {
+		t.Errorf("expected rx_errors 2, got %d", parsed.Stats.RxErrors)
+	}
+	if parsed.Stats.TxDropped != 3 {
+		t.Errorf("expected tx_dropped 3, got %d", parsed.Stats.TxDropped)
+	}
+	if parsed.Stats.RxDropped != 4 {
+		t.Errorf("expected rx_dropped 4, got %d", parsed.Stats.RxDropped)
+	}
+}
+
+func TestStatsNilWhenNotProvided(t *testing.T) {
+	now := time.Date(2026, 2, 14, 14, 0, 0, 0, time.UTC)
+	data := NewInterfaceData("eth0", now, 5*time.Second, nil, nil, nil)
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var parsed InterfaceData
+	if err := json.Unmarshal(b, &parsed); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	if parsed.Stats != nil {
+		t.Error("expected stats to be null when not provided")
+	}
+
+	// Verify JSON contains "stats":null
+	var raw map[string]json.RawMessage
+	json.Unmarshal(b, &raw)
+	if string(raw["stats"]) != "null" {
+		t.Errorf("expected stats to be null in JSON, got %s", string(raw["stats"]))
+	}
 }
 
 func TestEmptyNeighbours(t *testing.T) {
 	now := time.Date(2026, 2, 14, 14, 0, 0, 0, time.UTC)
-	data := NewInterfaceData("eth0", now, 5*time.Second, nil, nil)
+	data := NewInterfaceData("eth0", now, 5*time.Second, nil, nil, nil)
 
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -123,7 +188,7 @@ func TestNeighbourNoIPs(t *testing.T) {
 		},
 	}
 
-	data := NewInterfaceData("eth0", now, 5*time.Second, neighbours, nil)
+	data := NewInterfaceData("eth0", now, 5*time.Second, neighbours, nil, nil)
 	b, err := json.Marshal(data)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -153,7 +218,7 @@ func TestTimestampFormatRFC3339(t *testing.T) {
 		},
 	}
 
-	data := NewInterfaceData("eth0", ts, 5*time.Second, neighbours, nil)
+	data := NewInterfaceData("eth0", ts, 5*time.Second, neighbours, nil, nil)
 	b, err := json.Marshal(data)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -187,7 +252,7 @@ func TestWriteJSONAtomicCreatesFile(t *testing.T) {
 		},
 	}
 
-	err := WriteJSON("eth0", neighbours, dir, now, 5*time.Second, nil)
+	err := WriteJSON("eth0", neighbours, dir, now, 5*time.Second, nil, nil)
 	if err != nil {
 		t.Fatalf("WriteJSON failed: %v", err)
 	}
@@ -216,7 +281,7 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 	now := time.Now()
 
 	// Write first version
-	err := WriteJSON("eth0", nil, dir, now, 5*time.Second, nil)
+	err := WriteJSON("eth0", nil, dir, now, 5*time.Second, nil, nil)
 	if err != nil {
 		t.Fatalf("first WriteJSON failed: %v", err)
 	}
@@ -229,7 +294,7 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 			LastSeen:  now,
 		},
 	}
-	err = WriteJSON("eth0", neighbours, dir, now, 5*time.Second, nil)
+	err = WriteJSON("eth0", neighbours, dir, now, 5*time.Second, nil, nil)
 	if err != nil {
 		t.Fatalf("second WriteJSON failed: %v", err)
 	}
@@ -251,7 +316,7 @@ func TestWriteJSONFilePermissions(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Now()
 
-	err := WriteJSON("eth0", nil, dir, now, 5*time.Second, nil)
+	err := WriteJSON("eth0", nil, dir, now, 5*time.Second, nil, nil)
 	if err != nil {
 		t.Fatalf("WriteJSON failed: %v", err)
 	}
@@ -326,6 +391,18 @@ func TestGoldenFileSchema(t *testing.T) {
 				t.Error("interface ipv6 should be empty array, not null")
 			}
 
+			// Validate stats
+			if data.Stats == nil {
+				t.Error("golden file must have stats field")
+			} else {
+				// All counter fields should be non-negative (uint64, always true)
+				// but verify they parsed correctly by checking they exist
+				if data.Stats.RxBytes == 0 && data.Stats.TxBytes == 0 &&
+					data.Stats.RxPackets == 0 && data.Stats.TxPackets == 0 {
+					t.Error("golden file stats should have some non-zero counters")
+				}
+			}
+
 			// Validate each neighbour
 			for i, n := range data.Neighbours {
 				// MAC format: xx:xx:xx:xx:xx:xx
@@ -364,5 +441,28 @@ func TestGoldenFileSchema(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLookupInterfaceStatsLoopback(t *testing.T) {
+	// Loopback should always exist and have some stats
+	stats, err := LookupInterfaceStats("lo")
+	if err != nil {
+		t.Fatalf("LookupInterfaceStats(lo) failed: %v", err)
+	}
+	if stats == nil {
+		t.Fatal("expected non-nil stats for lo")
+	}
+	// Loopback should have at least some packets (from DNS, etc.)
+	// We just verify the struct is populated without error
+}
+
+func TestLookupInterfaceStatsNotFound(t *testing.T) {
+	stats, err := LookupInterfaceStats("nonexistent99")
+	if err == nil {
+		t.Error("expected error for nonexistent interface")
+	}
+	if stats != nil {
+		t.Error("expected nil stats for nonexistent interface")
 	}
 }

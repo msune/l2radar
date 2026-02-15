@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/marc/l2radar/probe/pkg/dump"
@@ -51,6 +53,56 @@ func LookupInterfaceInfo(name string) (*InterfaceInfo, error) {
 	return info, nil
 }
 
+// InterfaceStats holds kernel TX/RX counters for a network interface.
+type InterfaceStats struct {
+	TxBytes   uint64 `json:"tx_bytes"`
+	RxBytes   uint64 `json:"rx_bytes"`
+	TxPackets uint64 `json:"tx_packets"`
+	RxPackets uint64 `json:"rx_packets"`
+	TxErrors  uint64 `json:"tx_errors"`
+	RxErrors  uint64 `json:"rx_errors"`
+	TxDropped uint64 `json:"tx_dropped"`
+	RxDropped uint64 `json:"rx_dropped"`
+}
+
+// readSysStat reads a single counter from /sys/class/net/<iface>/statistics/<name>.
+func readSysStat(iface, name string) (uint64, error) {
+	path := fmt.Sprintf("/sys/class/net/%s/statistics/%s", iface, name)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+}
+
+// LookupInterfaceStats reads kernel interface counters from sysfs.
+func LookupInterfaceStats(name string) (*InterfaceStats, error) {
+	fields := []string{
+		"tx_bytes", "rx_bytes",
+		"tx_packets", "rx_packets",
+		"tx_errors", "rx_errors",
+		"tx_dropped", "rx_dropped",
+	}
+	vals := make([]uint64, len(fields))
+	for i, f := range fields {
+		v, err := readSysStat(name, f)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s for %s: %w", f, name, err)
+		}
+		vals[i] = v
+	}
+	return &InterfaceStats{
+		TxBytes:   vals[0],
+		RxBytes:   vals[1],
+		TxPackets: vals[2],
+		RxPackets: vals[3],
+		TxErrors:  vals[4],
+		RxErrors:  vals[5],
+		TxDropped: vals[6],
+		RxDropped: vals[7],
+	}, nil
+}
+
 // NeighbourJSON is the JSON representation of a neighbour entry.
 type NeighbourJSON struct {
 	MAC       string   `json:"mac"`
@@ -68,18 +120,20 @@ type InterfaceData struct {
 	MAC            string          `json:"mac"`
 	IPv4           []string        `json:"ipv4"`
 	IPv6           []string        `json:"ipv6"`
+	Stats          *InterfaceStats `json:"stats"`
 	Neighbours     []NeighbourJSON `json:"neighbours"`
 }
 
 // NewInterfaceData converts dump.Neighbour entries to the JSON export format.
-// ifInfo may be nil if the interface's own addresses are unavailable.
-func NewInterfaceData(iface string, ts time.Time, interval time.Duration, neighbours []dump.Neighbour, ifInfo *InterfaceInfo) InterfaceData {
+// ifInfo and stats may be nil if unavailable.
+func NewInterfaceData(iface string, ts time.Time, interval time.Duration, neighbours []dump.Neighbour, ifInfo *InterfaceInfo, stats *InterfaceStats) InterfaceData {
 	data := InterfaceData{
 		Interface:      iface,
 		Timestamp:      ts.UTC().Format(time.RFC3339),
 		ExportInterval: interval.String(),
 		IPv4:           []string{},
 		IPv6:           []string{},
+		Stats:          stats,
 		Neighbours:     make([]NeighbourJSON, 0, len(neighbours)),
 	}
 
@@ -121,8 +175,8 @@ func OutputFileName(iface string) string {
 // WriteJSON writes the neighbour data for an interface to a JSON file
 // in the given output directory. The write is atomic (temp file + rename)
 // so readers never see a partial file. ifInfo may be nil.
-func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts time.Time, interval time.Duration, ifInfo *InterfaceInfo) error {
-	data := NewInterfaceData(iface, ts, interval, neighbours, ifInfo)
+func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts time.Time, interval time.Duration, ifInfo *InterfaceInfo, stats *InterfaceStats) error {
+	data := NewInterfaceData(iface, ts, interval, neighbours, ifInfo, stats)
 
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
