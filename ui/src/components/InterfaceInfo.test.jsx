@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import InterfaceInfo from './InterfaceInfo'
 
 afterEach(cleanup)
@@ -94,5 +94,99 @@ describe('InterfaceInfo', () => {
     const labels = screen.getAllByText(/^(Interface|MAC|IPv4|IPv6|Last update)$/)
     const order = labels.map((el) => el.textContent)
     expect(order).toEqual(['Interface', 'MAC', 'IPv4', 'IPv6', 'Last update'])
+  })
+
+  it('shows stats toggle button when stats are present', () => {
+    const stats = {
+      tx_bytes: 1234567, rx_bytes: 7890123,
+      tx_packets: 10000, rx_packets: 20000,
+      tx_errors: 0, rx_errors: 1,
+      tx_dropped: 0, rx_dropped: 0,
+    }
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: [], stats }}
+      />
+    )
+    expect(screen.getByText(/Interface Stats/)).toBeInTheDocument()
+  })
+
+  it('stats are collapsed by default', () => {
+    const stats = {
+      tx_bytes: 1234567, rx_bytes: 7890123,
+      tx_packets: 10000, rx_packets: 20000,
+      tx_errors: 0, rx_errors: 0,
+      tx_dropped: 0, rx_dropped: 0,
+    }
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: [], stats }}
+      />
+    )
+    // Stats values should not be visible when collapsed
+    expect(screen.queryByText('TX Bytes')).not.toBeInTheDocument()
+  })
+
+  it('expands stats on click', () => {
+    const stats = {
+      tx_bytes: 1234567, rx_bytes: 7890123,
+      tx_packets: 10000, rx_packets: 20000,
+      tx_errors: 0, rx_errors: 1,
+      tx_dropped: 2, rx_dropped: 0,
+    }
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: [], stats }}
+      />
+    )
+    fireEvent.click(screen.getByText(/Interface Stats/))
+
+    // All stat labels should be visible
+    expect(screen.getByText('TX Bytes')).toBeInTheDocument()
+    expect(screen.getByText('RX Bytes')).toBeInTheDocument()
+    expect(screen.getByText('TX Packets')).toBeInTheDocument()
+    expect(screen.getByText('RX Packets')).toBeInTheDocument()
+    expect(screen.getByText('TX Errors')).toBeInTheDocument()
+    expect(screen.getByText('RX Errors')).toBeInTheDocument()
+    expect(screen.getByText('TX Dropped')).toBeInTheDocument()
+    expect(screen.getByText('RX Dropped')).toBeInTheDocument()
+  })
+
+  it('formats bytes in human-readable form', () => {
+    const stats = {
+      tx_bytes: 1536, rx_bytes: 2621440,
+      tx_packets: 10, rx_packets: 20,
+      tx_errors: 0, rx_errors: 0,
+      tx_dropped: 0, rx_dropped: 0,
+    }
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: [], stats }}
+      />
+    )
+    fireEvent.click(screen.getByText(/Interface Stats/))
+
+    // 1536 bytes = 1.5 KB, 2621440 bytes = 2.5 MB
+    expect(screen.getByText('1.5 KB')).toBeInTheDocument()
+    expect(screen.getByText('2.5 MB')).toBeInTheDocument()
+  })
+
+  it('does not show stats toggle when stats is null', () => {
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: [], stats: null }}
+      />
+    )
+    expect(screen.queryByText(/Interface Stats/)).not.toBeInTheDocument()
   })
 })
