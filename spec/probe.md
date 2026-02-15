@@ -18,7 +18,7 @@ probe/
 │   └── oui/
 │       ├── oui.go        # OUI lookup from IEEE MA-L database
 │       ├── oui_test.go
-│       └── oui.txt       # Cached IEEE OUI database (MA-L)
+│       └── oui.json      # Preparsed IEEE OUI database (prefix→vendor)
 ├── go.mod
 └── go.sum
 ```
@@ -78,8 +78,8 @@ probe/
 - Package: `probe/pkg/oui/`
 - Uses the IEEE MA-L (OUI) database to resolve the first 3 bytes of a
   MAC address to a vendor name.
-- `oui.txt` is cached in the repo and embedded via `//go:embed`.
-  Source: `https://standards-oui.ieee.org/oui/oui.txt`.
+- `oui.json` is a preparsed prefix→vendor map shared with the UI,
+  embedded via `//go:embed`.
 - `Lookup(mac net.HardwareAddr) string` — returns vendor name or `""`.
 - Used by `dump` subcommand for terminal display.
 - The UI ships its own OUI copy and resolves client-side. The JSON
