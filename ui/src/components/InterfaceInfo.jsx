@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { format } from 'timeago.js'
+import { formatAgo } from '../lib/timeago'
 
 function InterfaceInfo({ name, timestamp, info }) {
   const [, setTick] = useState(0)
 
   useEffect(() => {
     if (!timestamp) return
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    const id = setInterval(() => setTick((t) => t + 1), 5000)
     return () => clearInterval(id)
   }, [timestamp])
 
@@ -41,7 +41,7 @@ function InterfaceInfo({ name, timestamp, info }) {
       <div>
         <span className="text-radar-500 text-xs">Last update</span>
         <div className="text-radar-100" title={timestamp || ''}>
-          {timestamp ? format(timestamp) : '—'}
+          {timestamp ? formatAgo(timestamp) : '—'}
         </div>
       </div>
     </div>

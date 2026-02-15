@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { format } from 'timeago.js'
+import { formatAgo } from '../lib/timeago'
 import { sortNeighbours } from '../lib/sorting'
 import { lookupOUI } from '../lib/ouiLookup'
 
@@ -28,7 +28,7 @@ function NeighbourTable({ neighbours, showInterface = true }) {
   const [, setTick] = useState(0)
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    const id = setInterval(() => setTick((t) => t + 1), 5000)
     return () => clearInterval(id)
   }, [])
 
@@ -91,10 +91,10 @@ function NeighbourTable({ neighbours, showInterface = true }) {
                   {n.ipv6.join(', ') || '—'}
                 </td>
                 <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.firstSeen}>
-                  {n.firstSeen ? format(n.firstSeen) : ''}
+                  {n.firstSeen ? formatAgo(n.firstSeen) : ''}
                 </td>
                 <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.lastSeen}>
-                  {n.lastSeen ? format(n.lastSeen) : ''}
+                  {n.lastSeen ? formatAgo(n.lastSeen) : ''}
                 </td>
               </tr>
             ))}
@@ -140,8 +140,8 @@ function NeighbourTable({ neighbours, showInterface = true }) {
               </div>
             )}
             <div className="flex justify-between text-xs text-radar-500 mt-2">
-              <span title={n.firstSeen}>First: {n.firstSeen ? format(n.firstSeen) : ''}</span>
-              <span title={n.lastSeen}>Last: {n.lastSeen ? format(n.lastSeen) : ''}</span>
+              <span title={n.firstSeen}>First: {n.firstSeen ? formatAgo(n.firstSeen) : ''}</span>
+              <span title={n.lastSeen}>Last: {n.lastSeen ? formatAgo(n.lastSeen) : ''}</span>
             </div>
           </div>
         ))}
