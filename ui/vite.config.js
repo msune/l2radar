@@ -6,7 +6,7 @@ import { execSync } from 'child_process'
 const version = (() => {
   if (process.env.APP_VERSION) return process.env.APP_VERSION
   try {
-    return execSync('git describe --tags --always --dirty', {
+    return execSync('git describe --tags --always', {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim()
