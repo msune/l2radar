@@ -8,6 +8,7 @@ import SearchBar from './components/SearchBar'
 import InterfaceTabs from './components/InterfaceTabs'
 import InterfaceInfo from './components/InterfaceInfo'
 import HeaderMenu from './components/HeaderMenu'
+import logoSmall from '../../assets/img/logo_small.png'
 
 function App() {
   const { neighbours, timestamps, interfaceInfo, loading, error } = useNeighbourData()
@@ -25,7 +26,7 @@ function App() {
     <div className="min-h-screen bg-radar-950 text-radar-100 flex flex-col">
       <header className="bg-radar-900 border-b border-radar-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-accent-400">L2 Radar</h1>
+          <img src={logoSmall} alt="L2 Radar" className="h-7" />
           {error && (
             <span className="text-xs text-red-400">Connection error</span>
           )}

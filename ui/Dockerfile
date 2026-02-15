@@ -6,6 +6,7 @@ WORKDIR /app
 COPY .git ./.git
 COPY ui/package.json ui/package-lock.json ./
 RUN npm ci
+COPY assets/ ../assets/
 COPY ui/ .
 RUN npm run build
 
