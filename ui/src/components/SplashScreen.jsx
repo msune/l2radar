@@ -20,7 +20,7 @@ function SplashScreen({ onDone }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-radar-950/90 backdrop-blur-sm cursor-pointer"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-radar-950/40 backdrop-blur-sm cursor-pointer"
       style={{
         opacity: fading ? 0 : 1,
         transition: `opacity ${FADE_DURATION}ms ease-out`,
@@ -30,7 +30,7 @@ function SplashScreen({ onDone }) {
       <img
         src={logoSplash}
         alt="L2 Radar"
-        className="max-w-[80vw] max-h-[80vh] w-auto h-auto object-contain"
+        className="max-w-[45vw] max-h-[45vh] w-auto h-auto object-contain rounded-2xl"
       />
     </div>
   )

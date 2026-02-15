@@ -27,9 +27,13 @@ function App() {
   return (
     <div className="min-h-screen bg-radar-950 text-radar-100 flex flex-col">
       {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
-      <header className="bg-radar-900 border-b border-radar-700 px-4 py-3 flex items-center justify-between">
+      <header className="bg-radar-900 border-b border-radar-700 px-4 py-1 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={logoSmall} alt="L2 Radar" className="h-7" />
+          <a
+            href="/"
+          >
+              <img src={logoSmall} alt="L2 Radar" className="h-11" />
+          </a>
           {error && (
             <span className="text-xs text-red-400">Connection error</span>
           )}
