@@ -135,23 +135,34 @@ describe('mergeNeighbours', () => {
     expect(timestamps).toEqual({ br0: '2026-02-14T15:00:00Z' })
   })
 
-  it('returns per-interface info with mac and addresses', () => {
+  it('returns per-interface info with mac, addresses, and stats', () => {
     const { interfaceInfo } = mergeNeighbours([eth0Data, wlan0Data])
     expect(interfaceInfo.eth0).toEqual({
       mac: eth0Data.mac,
       ipv4: eth0Data.ipv4,
       ipv6: eth0Data.ipv6,
       exportInterval: eth0Data.export_interval || '',
+      stats: eth0Data.stats || null,
     })
     expect(interfaceInfo.wlan0).toEqual({
       mac: wlan0Data.mac,
       ipv4: wlan0Data.ipv4,
       ipv6: wlan0Data.ipv6,
       exportInterval: wlan0Data.export_interval || '',
+      stats: wlan0Data.stats || null,
     })
   })
 
-  it('defaults interface info arrays to empty when missing', () => {
+  it('includes stats counters from golden files', () => {
+    const { interfaceInfo } = mergeNeighbours([eth0Data, wlan0Data])
+    expect(interfaceInfo.eth0.stats).toBeDefined()
+    expect(interfaceInfo.eth0.stats.tx_bytes).toBe(1234567)
+    expect(interfaceInfo.eth0.stats.rx_bytes).toBe(7890123)
+    expect(interfaceInfo.wlan0.stats).toBeDefined()
+    expect(interfaceInfo.wlan0.stats.rx_errors).toBe(1)
+  })
+
+  it('defaults interface info arrays and stats to empty/null when missing', () => {
     const minimal = { interface: 'br0', timestamp: '2026-02-14T15:00:00Z', neighbours: [] }
     const { interfaceInfo } = mergeNeighbours([minimal])
     expect(interfaceInfo.br0).toEqual({
@@ -159,6 +170,7 @@ describe('mergeNeighbours', () => {
       ipv4: [],
       ipv6: [],
       exportInterval: '',
+      stats: null,
     })
   })
 })
