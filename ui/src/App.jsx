@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { useNeighbourData } from './hooks/useNeighbourData'
+import { useUsername } from './hooks/useUsername'
 import { filterNeighbours, getInterfaces } from './lib/filter'
 import SummaryStats from './components/SummaryStats'
 import NeighbourTable from './components/NeighbourTable'
 import SearchBar from './components/SearchBar'
 import InterfaceTabs from './components/InterfaceTabs'
 import InterfaceInfo from './components/InterfaceInfo'
+import HeaderMenu from './components/HeaderMenu'
 
 function App() {
   const { neighbours, timestamps, interfaceInfo, loading, error } = useNeighbourData()
+  const username = useUsername()
   const [search, setSearch] = useState('')
   const [selectedInterface, setSelectedInterface] = useState('')
 
@@ -21,13 +24,16 @@ function App() {
   return (
     <div className="min-h-screen bg-radar-950 text-radar-100 flex flex-col">
       <header className="bg-radar-900 border-b border-radar-700 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-accent-400">L2 Radar</h1>
-        {error && (
-          <span className="text-xs text-red-400">Connection error</span>
-        )}
-        {loading && (
-          <span className="text-xs text-radar-500">Loading...</span>
-        )}
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-accent-400">L2 Radar</h1>
+          {error && (
+            <span className="text-xs text-red-400">Connection error</span>
+          )}
+          {loading && (
+            <span className="text-xs text-radar-500">Loading...</span>
+          )}
+        </div>
+        <HeaderMenu username={username} />
       </header>
       <main className="flex-1 p-4">
         <div className="max-w-screen-2xl mx-auto">
