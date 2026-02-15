@@ -20,10 +20,6 @@ function InterfaceInfo({ name, timestamp, info }) {
         <div className="text-radar-100 font-semibold">{name || '—'}</div>
       </div>
       <div>
-        <span className="text-radar-500 text-xs">Last update</span>
-        <div className="text-radar-100">{timestamp ? formatTimestamp(timestamp) : '—'}</div>
-      </div>
-      <div>
         <span className="text-radar-500 text-xs">MAC</span>
         <div className="text-radar-100 font-mono">{info.mac || '—'}</div>
       </div>
@@ -42,6 +38,10 @@ function InterfaceInfo({ name, timestamp, info }) {
             ? info.ipv6.map((ip) => <div key={ip}>{ip}</div>)
             : '—'}
         </div>
+      </div>
+      <div>
+        <span className="text-radar-500 text-xs">Last update</span>
+        <div className="text-radar-100">{timestamp ? formatTimestamp(timestamp) : '—'}</div>
       </div>
     </div>
   )
