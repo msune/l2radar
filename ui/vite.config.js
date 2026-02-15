@@ -3,9 +3,13 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { execSync } from 'child_process'
 
-const version = process.env.APP_VERSION || (() => {
+const version = (() => {
+  if (process.env.APP_VERSION) return process.env.APP_VERSION
   try {
-    return execSync('git describe --tags --always', { encoding: 'utf-8' }).trim()
+    return execSync('git describe --tags --always --dirty', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
   } catch {
     return 'dev'
   }

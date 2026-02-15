@@ -26,7 +26,7 @@ function HeaderMenu({ username }) {
         <span className="text-xs">▾</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-radar-800 border border-radar-700 rounded shadow-lg min-w-44 z-50 text-sm">
+        <div className="absolute right-0 top-full mt-1 bg-radar-800 border border-radar-700 rounded shadow-lg min-w-56 whitespace-nowrap z-50 text-sm">
           <div className="flex items-center gap-2 px-3 py-2 text-radar-500 border-b border-radar-700">
             <Info size={14} />
             {__APP_VERSION__}

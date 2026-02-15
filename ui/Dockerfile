@@ -1,12 +1,12 @@
 FROM node:22-alpine AS build
 
-ARG APP_VERSION=dev
-ENV APP_VERSION=${APP_VERSION}
+RUN apk add --no-cache git
 
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY .git ./.git
+COPY ui/package.json ui/package-lock.json ./
 RUN npm ci
-COPY . .
+COPY ui/ .
 RUN npm run build
 
 FROM nginx:alpine
@@ -14,9 +14,9 @@ FROM nginx:alpine
 RUN apk add --no-cache openssl apache2-utils yq
 
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY entrypoint.sh /entrypoint.sh
+COPY ui/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY ui/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY ui/entrypoint.sh /entrypoint.sh
 
 EXPOSE 80 443
 
