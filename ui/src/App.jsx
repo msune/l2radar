@@ -19,7 +19,7 @@ function App() {
   })
 
   return (
-    <div className="min-h-screen bg-radar-950 text-radar-100">
+    <div className="min-h-screen bg-radar-950 text-radar-100 flex flex-col">
       <header className="bg-radar-900 border-b border-radar-700 px-4 py-3 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-accent-400">L2 Radar</h1>
         {error && (
@@ -29,7 +29,8 @@ function App() {
           <span className="text-xs text-radar-500">Loading...</span>
         )}
       </header>
-      <main className="p-4 max-w-screen-2xl mx-auto">
+      <main className="flex-1 p-4">
+        <div className="max-w-screen-2xl mx-auto">
         <SummaryStats neighbours={filtered} />
         <InterfaceTabs
           interfaces={interfaces}
@@ -48,7 +49,19 @@ function App() {
           onSearchChange={setSearch}
         />
         <NeighbourTable neighbours={filtered} showInterface={!selectedInterface} />
+        </div>
       </main>
+      <footer className="bg-radar-800 px-4 py-2 text-center text-xs text-radar-500">
+        © {new Date().getFullYear()} L2 Radar · Made with ❤️ from Barcelona ·{' '}
+        <a
+          href="https://github.com/msune/l2radar"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent-400 hover:text-accent-300"
+        >
+          GitHub
+        </a>
+      </footer>
     </div>
   )
 }
