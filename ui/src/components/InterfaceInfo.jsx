@@ -1,13 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { formatAgo } from '../lib/timeago'
 
 function InterfaceInfo({ name, timestamp, info }) {
   const [, setTick] = useState(0)
+  const prevTimestamp = useRef(timestamp)
+  const [highlight, setHighlight] = useState(false)
 
   useEffect(() => {
     if (!timestamp) return
     const id = setInterval(() => setTick((t) => t + 1), 5000)
     return () => clearInterval(id)
+  }, [timestamp])
+
+  useEffect(() => {
+    if (prevTimestamp.current && timestamp && timestamp !== prevTimestamp.current) {
+      setHighlight(true)
+      const id = setTimeout(() => setHighlight(false), 5000)
+      prevTimestamp.current = timestamp
+      return () => clearTimeout(id)
+    }
+    prevTimestamp.current = timestamp
   }, [timestamp])
 
   if (!info) return null
@@ -38,7 +50,7 @@ function InterfaceInfo({ name, timestamp, info }) {
             : '—'}
         </div>
       </div>
-      <div>
+      <div className={highlight ? 'highlight-fresh rounded' : ''}>
         <span className="text-radar-500 text-xs">Last update</span>
         <div className="text-radar-100" title={timestamp || ''}>
           {timestamp ? formatAgo(timestamp) : '—'}

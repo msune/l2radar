@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatAgo } from '../lib/timeago'
 import { sortNeighbours } from '../lib/sorting'
 import { lookupOUI } from '../lib/ouiLookup'
@@ -12,11 +12,17 @@ const COLUMNS = [
   { key: 'lastSeen', label: 'Last Seen' },
 ]
 
+const STALE_MS = 5 * 60 * 1000
+
 function SortIndicator({ active, dir }) {
   if (!active) return <span className="text-radar-600 ml-1">&#x2195;</span>
   return (
     <span className="text-accent-400 ml-1">{dir === 'asc' ? '▲' : '▼'}</span>
   )
+}
+
+function rowKey(n) {
+  return `${n.interface}-${n.mac}`
 }
 
 function NeighbourTable({ neighbours, showInterface = true }) {
@@ -26,11 +32,35 @@ function NeighbourTable({ neighbours, showInterface = true }) {
   const [sortKey, setSortKey] = useState('lastSeen')
   const [sortDir, setSortDir] = useState('desc')
   const [, setTick] = useState(0)
+  const prevLastSeen = useRef({})
+  const [freshKeys, setFreshKeys] = useState(new Set())
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 5000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    const prev = prevLastSeen.current
+    const newFresh = new Set()
+    const next = {}
+
+    for (const n of neighbours) {
+      const k = rowKey(n)
+      next[k] = n.lastSeen
+      if (!prev[k] || prev[k] !== n.lastSeen) {
+        newFresh.add(k)
+      }
+    }
+
+    prevLastSeen.current = next
+
+    if (newFresh.size > 0) {
+      setFreshKeys(newFresh)
+      const id = setTimeout(() => setFreshKeys(new Set()), 5000)
+      return () => clearTimeout(id)
+    }
+  }, [neighbours])
 
   const handleSort = (key) => {
     if (sortKey === key) {
@@ -42,6 +72,12 @@ function NeighbourTable({ neighbours, showInterface = true }) {
   }
 
   const sorted = sortNeighbours(neighbours, sortKey, sortDir)
+  const now = Date.now()
+
+  function isStale(n) {
+    if (!n.lastSeen) return false
+    return now - new Date(n.lastSeen).getTime() > STALE_MS
+  }
 
   return (
     <>
@@ -66,38 +102,43 @@ function NeighbourTable({ neighbours, showInterface = true }) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((n, i) => (
-              <tr
-                key={`${n.interface}-${n.mac}`}
-                className={`border-b border-radar-800 hover:bg-radar-900 ${
-                  i % 2 === 0 ? 'bg-radar-950' : 'bg-radar-900/30'
-                }`}
-              >
-                {showInterface && (
-                  <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
-                )}
-                <td className="px-2 py-1.5 font-mono text-accent-300">
-                  {n.mac}
-                  {lookupOUI(n.mac) && (
-                    <span className="text-radar-500 text-xs ml-1">
-                      ({lookupOUI(n.mac)})
-                    </span>
+            {sorted.map((n, i) => {
+              const k = rowKey(n)
+              const stale = isStale(n)
+              const fresh = freshKeys.has(k)
+              return (
+                <tr
+                  key={k}
+                  className={`border-b border-radar-800 hover:bg-radar-900 ${
+                    i % 2 === 0 ? 'bg-radar-950' : 'bg-radar-900/30'
+                  } ${stale ? 'opacity-40' : ''} ${fresh ? 'highlight-fresh' : ''}`}
+                >
+                  {showInterface && (
+                    <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
                   )}
-                </td>
-                <td className="px-2 py-1.5 font-mono">
-                  {n.ipv4.join(', ') || '—'}
-                </td>
-                <td className="px-2 py-1.5 font-mono text-xs">
-                  {n.ipv6.join(', ') || '—'}
-                </td>
-                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.firstSeen}>
-                  {n.firstSeen ? formatAgo(n.firstSeen) : ''}
-                </td>
-                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.lastSeen}>
-                  {n.lastSeen ? formatAgo(n.lastSeen) : ''}
-                </td>
-              </tr>
-            ))}
+                  <td className="px-2 py-1.5 font-mono text-accent-300">
+                    {n.mac}
+                    {lookupOUI(n.mac) && (
+                      <span className="text-radar-500 text-xs ml-1">
+                        ({lookupOUI(n.mac)})
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 font-mono">
+                    {n.ipv4.join(', ') || '—'}
+                  </td>
+                  <td className="px-2 py-1.5 font-mono text-xs">
+                    {n.ipv6.join(', ') || '—'}
+                  </td>
+                  <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.firstSeen}>
+                    {n.firstSeen ? formatAgo(n.firstSeen) : ''}
+                  </td>
+                  <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.lastSeen}>
+                    {n.lastSeen ? formatAgo(n.lastSeen) : ''}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         {sorted.length === 0 && (
@@ -109,42 +150,49 @@ function NeighbourTable({ neighbours, showInterface = true }) {
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
-        {sorted.map((n) => (
-          <div
-            key={`${n.interface}-${n.mac}-mobile`}
-            className="bg-radar-900 border border-radar-700 rounded p-3"
-          >
-            <div className="flex justify-between items-start mb-1">
-              <div>
-                <span className="font-mono text-accent-300 text-sm">
-                  {n.mac}
-                </span>
-                {lookupOUI(n.mac) && (
-                  <div className="text-radar-500 text-xs">
-                    {lookupOUI(n.mac)}
-                  </div>
+        {sorted.map((n) => {
+          const k = rowKey(n)
+          const stale = isStale(n)
+          const fresh = freshKeys.has(k)
+          return (
+            <div
+              key={`${k}-mobile`}
+              className={`bg-radar-900 border border-radar-700 rounded p-3 ${
+                stale ? 'opacity-40' : ''
+              } ${fresh ? 'highlight-fresh' : ''}`}
+            >
+              <div className="flex justify-between items-start mb-1">
+                <div>
+                  <span className="font-mono text-accent-300 text-sm">
+                    {n.mac}
+                  </span>
+                  {lookupOUI(n.mac) && (
+                    <div className="text-radar-500 text-xs">
+                      {lookupOUI(n.mac)}
+                    </div>
+                  )}
+                </div>
+                {showInterface && (
+                  <span className="text-xs text-radar-500">{n.interface}</span>
                 )}
               </div>
-              {showInterface && (
-                <span className="text-xs text-radar-500">{n.interface}</span>
+              {n.ipv4.length > 0 && (
+                <div className="text-xs font-mono text-radar-200">
+                  {n.ipv4.join(', ')}
+                </div>
               )}
-            </div>
-            {n.ipv4.length > 0 && (
-              <div className="text-xs font-mono text-radar-200">
-                {n.ipv4.join(', ')}
+              {n.ipv6.length > 0 && (
+                <div className="text-xs font-mono text-radar-300 break-all">
+                  {n.ipv6.join(', ')}
+                </div>
+              )}
+              <div className="flex justify-between text-xs text-radar-500 mt-2">
+                <span title={n.firstSeen}>First: {n.firstSeen ? formatAgo(n.firstSeen) : ''}</span>
+                <span title={n.lastSeen}>Last: {n.lastSeen ? formatAgo(n.lastSeen) : ''}</span>
               </div>
-            )}
-            {n.ipv6.length > 0 && (
-              <div className="text-xs font-mono text-radar-300 break-all">
-                {n.ipv6.join(', ')}
-              </div>
-            )}
-            <div className="flex justify-between text-xs text-radar-500 mt-2">
-              <span title={n.firstSeen}>First: {n.firstSeen ? formatAgo(n.firstSeen) : ''}</span>
-              <span title={n.lastSeen}>Last: {n.lastSeen ? formatAgo(n.lastSeen) : ''}</span>
             </div>
-          </div>
-        ))}
+          )
+        })}
         {sorted.length === 0 && (
           <p className="text-center text-radar-500 py-8">
             No neighbours found
