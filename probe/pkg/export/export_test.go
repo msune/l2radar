@@ -28,7 +28,7 @@ func TestInterfaceDataJSON(t *testing.T) {
 		IPv6: []net.IP{net.ParseIP("fe80::aabb:ccff:fe00:1122")},
 	}
 
-	data := NewInterfaceData("eth0", now, neighbours, ifInfo)
+	data := NewInterfaceData("eth0", now, 5*time.Second, neighbours, ifInfo)
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -45,6 +45,9 @@ func TestInterfaceDataJSON(t *testing.T) {
 	}
 	if parsed.Timestamp != "2026-02-14T14:30:00Z" {
 		t.Errorf("expected timestamp 2026-02-14T14:30:00Z, got %s", parsed.Timestamp)
+	}
+	if parsed.ExportInterval != "5s" {
+		t.Errorf("expected export_interval 5s, got %s", parsed.ExportInterval)
 	}
 	if parsed.MAC != "aa:bb:cc:00:11:22" {
 		t.Errorf("expected MAC aa:bb:cc:00:11:22, got %s", parsed.MAC)
@@ -78,7 +81,7 @@ func TestInterfaceDataJSON(t *testing.T) {
 
 func TestEmptyNeighbours(t *testing.T) {
 	now := time.Date(2026, 2, 14, 14, 0, 0, 0, time.UTC)
-	data := NewInterfaceData("eth0", now, nil, nil)
+	data := NewInterfaceData("eth0", now, 5*time.Second, nil, nil)
 
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -120,7 +123,7 @@ func TestNeighbourNoIPs(t *testing.T) {
 		},
 	}
 
-	data := NewInterfaceData("eth0", now, neighbours, nil)
+	data := NewInterfaceData("eth0", now, 5*time.Second, neighbours, nil)
 	b, err := json.Marshal(data)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -150,7 +153,7 @@ func TestTimestampFormatRFC3339(t *testing.T) {
 		},
 	}
 
-	data := NewInterfaceData("eth0", ts, neighbours, nil)
+	data := NewInterfaceData("eth0", ts, 5*time.Second, neighbours, nil)
 	b, err := json.Marshal(data)
 	if err != nil {
 		t.Fatalf("marshal failed: %v", err)
@@ -184,7 +187,7 @@ func TestWriteJSONAtomicCreatesFile(t *testing.T) {
 		},
 	}
 
-	err := WriteJSON("eth0", neighbours, dir, now, nil)
+	err := WriteJSON("eth0", neighbours, dir, now, 5*time.Second, nil)
 	if err != nil {
 		t.Fatalf("WriteJSON failed: %v", err)
 	}
@@ -213,7 +216,7 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 	now := time.Now()
 
 	// Write first version
-	err := WriteJSON("eth0", nil, dir, now, nil)
+	err := WriteJSON("eth0", nil, dir, now, 5*time.Second, nil)
 	if err != nil {
 		t.Fatalf("first WriteJSON failed: %v", err)
 	}
@@ -226,7 +229,7 @@ func TestWriteJSONOverwritesExisting(t *testing.T) {
 			LastSeen:  now,
 		},
 	}
-	err = WriteJSON("eth0", neighbours, dir, now, nil)
+	err = WriteJSON("eth0", neighbours, dir, now, 5*time.Second, nil)
 	if err != nil {
 		t.Fatalf("second WriteJSON failed: %v", err)
 	}
@@ -248,7 +251,7 @@ func TestWriteJSONFilePermissions(t *testing.T) {
 	dir := t.TempDir()
 	now := time.Now()
 
-	err := WriteJSON("eth0", nil, dir, now, nil)
+	err := WriteJSON("eth0", nil, dir, now, 5*time.Second, nil)
 	if err != nil {
 		t.Fatalf("WriteJSON failed: %v", err)
 	}
@@ -304,6 +307,9 @@ func TestGoldenFileSchema(t *testing.T) {
 			}
 			if _, err := time.Parse(time.RFC3339, data.Timestamp); err != nil {
 				t.Errorf("timestamp not RFC3339: %s", data.Timestamp)
+			}
+			if data.ExportInterval == "" {
+				t.Error("golden file must have export_interval field")
 			}
 
 			// Validate interface address fields

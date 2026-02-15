@@ -141,11 +141,13 @@ describe('mergeNeighbours', () => {
       mac: eth0Data.mac,
       ipv4: eth0Data.ipv4,
       ipv6: eth0Data.ipv6,
+      exportInterval: eth0Data.export_interval || '',
     })
     expect(interfaceInfo.wlan0).toEqual({
       mac: wlan0Data.mac,
       ipv4: wlan0Data.ipv4,
       ipv6: wlan0Data.ipv6,
+      exportInterval: wlan0Data.export_interval || '',
     })
   })
 
@@ -156,6 +158,7 @@ describe('mergeNeighbours', () => {
       mac: '',
       ipv4: [],
       ipv6: [],
+      exportInterval: '',
     })
   })
 })

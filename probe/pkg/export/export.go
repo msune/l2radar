@@ -62,23 +62,25 @@ type NeighbourJSON struct {
 
 // InterfaceData is the top-level JSON structure for one interface export.
 type InterfaceData struct {
-	Interface  string          `json:"interface"`
-	Timestamp  string          `json:"timestamp"`
-	MAC        string          `json:"mac"`
-	IPv4       []string        `json:"ipv4"`
-	IPv6       []string        `json:"ipv6"`
-	Neighbours []NeighbourJSON `json:"neighbours"`
+	Interface      string          `json:"interface"`
+	Timestamp      string          `json:"timestamp"`
+	ExportInterval string          `json:"export_interval"`
+	MAC            string          `json:"mac"`
+	IPv4           []string        `json:"ipv4"`
+	IPv6           []string        `json:"ipv6"`
+	Neighbours     []NeighbourJSON `json:"neighbours"`
 }
 
 // NewInterfaceData converts dump.Neighbour entries to the JSON export format.
 // ifInfo may be nil if the interface's own addresses are unavailable.
-func NewInterfaceData(iface string, ts time.Time, neighbours []dump.Neighbour, ifInfo *InterfaceInfo) InterfaceData {
+func NewInterfaceData(iface string, ts time.Time, interval time.Duration, neighbours []dump.Neighbour, ifInfo *InterfaceInfo) InterfaceData {
 	data := InterfaceData{
-		Interface:  iface,
-		Timestamp:  ts.UTC().Format(time.RFC3339),
-		IPv4:       []string{},
-		IPv6:       []string{},
-		Neighbours: make([]NeighbourJSON, 0, len(neighbours)),
+		Interface:      iface,
+		Timestamp:      ts.UTC().Format(time.RFC3339),
+		ExportInterval: interval.String(),
+		IPv4:           []string{},
+		IPv6:           []string{},
+		Neighbours:     make([]NeighbourJSON, 0, len(neighbours)),
 	}
 
 	if ifInfo != nil {
@@ -119,8 +121,8 @@ func OutputFileName(iface string) string {
 // WriteJSON writes the neighbour data for an interface to a JSON file
 // in the given output directory. The write is atomic (temp file + rename)
 // so readers never see a partial file. ifInfo may be nil.
-func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts time.Time, ifInfo *InterfaceInfo) error {
-	data := NewInterfaceData(iface, ts, neighbours, ifInfo)
+func WriteJSON(iface string, neighbours []dump.Neighbour, outputDir string, ts time.Time, interval time.Duration, ifInfo *InterfaceInfo) error {
+	data := NewInterfaceData(iface, ts, interval, neighbours, ifInfo)
 
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

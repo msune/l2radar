@@ -36,6 +36,7 @@ export function mergeNeighbours(interfaceDataArray) {
       mac: data.mac || '',
       ipv4: data.ipv4 || [],
       ipv6: data.ipv6 || [],
+      exportInterval: data.export_interval || '',
     }
   }
   return { neighbours, timestamps, interfaceInfo }

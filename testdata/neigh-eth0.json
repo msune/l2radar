@@ -1,6 +1,7 @@
 {
   "interface": "eth0",
   "timestamp": "2026-02-14T14:30:00Z",
+  "export_interval": "5s",
   "mac": "de:ad:be:ef:00:01",
   "ipv4": ["192.168.1.10"],
   "ipv6": ["fe80::dcad:beff:feef:1"],

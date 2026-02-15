@@ -165,13 +165,13 @@ func runDefault(args []string) {
 		defer ticker.Stop()
 
 		// Export immediately, then on each tick.
-		exportAll(resolved, *pinPath, *exportDir, logger)
+		exportAll(resolved, *pinPath, *exportDir, *exportInterval, logger)
 		for {
 			select {
 			case <-ctx.Done():
 				goto shutdown
 			case <-ticker.C:
-				exportAll(resolved, *pinPath, *exportDir, logger)
+				exportAll(resolved, *pinPath, *exportDir, *exportInterval, logger)
 			}
 		}
 	} else {
@@ -188,7 +188,7 @@ shutdown:
 	}
 }
 
-func exportAll(ifaces []string, pinPath, outputDir string, logger *slog.Logger) {
+func exportAll(ifaces []string, pinPath, outputDir string, interval time.Duration, logger *slog.Logger) {
 	for _, iface := range ifaces {
 		mapPath := dump.PinPath(pinPath, iface)
 		neighbours, err := dump.ReadMap(mapPath)
@@ -204,7 +204,7 @@ func exportAll(ifaces []string, pinPath, outputDir string, logger *slog.Logger) 
 			logger.Warn("failed to lookup interface info", "interface", iface, "error", err)
 		}
 
-		if err := export.WriteJSON(iface, neighbours, outputDir, time.Now(), ifInfo); err != nil {
+		if err := export.WriteJSON(iface, neighbours, outputDir, time.Now(), interval, ifInfo); err != nil {
 			logger.Error("failed to write JSON", "interface", iface, "error", err)
 			continue
 		}
