@@ -16,7 +16,7 @@ describe('InterfaceInfo', () => {
     expect(screen.getByText('eth0')).toBeInTheDocument()
   })
 
-  it('renders last update timestamp', () => {
+  it('renders last update as relative time', () => {
     render(
       <InterfaceInfo
         name="eth0"
@@ -25,7 +25,8 @@ describe('InterfaceInfo', () => {
       />
     )
     expect(screen.getByText(/Last update/)).toBeInTheDocument()
-    expect(screen.getByText(/14:30:00 UTC/)).toBeInTheDocument()
+    // timeago.js renders relative time like "X hours ago", "X days ago", etc.
+    expect(screen.getByText(/ago/)).toBeInTheDocument()
   })
 
   it('renders MAC address', () => {
@@ -80,5 +81,18 @@ describe('InterfaceInfo', () => {
     )
     const macLabel = screen.getByText('MAC')
     expect(macLabel.closest('div').textContent).toContain('—')
+  })
+
+  it('renders fields in order: Interface, MAC, IPv4, IPv6, Last update', () => {
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: 'de:ad:be:ef:00:01', ipv4: ['10.0.0.1'], ipv6: ['fe80::1'] }}
+      />
+    )
+    const labels = screen.getAllByText(/^(Interface|MAC|IPv4|IPv6|Last update)$/)
+    const order = labels.map((el) => el.textContent)
+    expect(order).toEqual(['Interface', 'MAC', 'IPv4', 'IPv6', 'Last update'])
   })
 })

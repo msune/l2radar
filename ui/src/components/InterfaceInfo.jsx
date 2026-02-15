@@ -1,16 +1,15 @@
-function formatTimestamp(ts) {
-  try {
-    const d = new Date(ts)
-    const h = String(d.getUTCHours()).padStart(2, '0')
-    const m = String(d.getUTCMinutes()).padStart(2, '0')
-    const s = String(d.getUTCSeconds()).padStart(2, '0')
-    return `${h}:${m}:${s} UTC`
-  } catch {
-    return ts
-  }
-}
+import { useEffect, useState } from 'react'
+import { format } from 'timeago.js'
 
 function InterfaceInfo({ name, timestamp, info }) {
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!timestamp) return
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [timestamp])
+
   if (!info) return null
 
   return (
@@ -41,7 +40,9 @@ function InterfaceInfo({ name, timestamp, info }) {
       </div>
       <div>
         <span className="text-radar-500 text-xs">Last update</span>
-        <div className="text-radar-100">{timestamp ? formatTimestamp(timestamp) : '—'}</div>
+        <div className="text-radar-100" title={timestamp || ''}>
+          {timestamp ? format(timestamp) : '—'}
+        </div>
       </div>
     </div>
   )

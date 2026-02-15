@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { format } from 'timeago.js'
 import { sortNeighbours } from '../lib/sorting'
 import { lookupOUI } from '../lib/ouiLookup'
 
@@ -10,12 +11,6 @@ const COLUMNS = [
   { key: 'firstSeen', label: 'First Seen' },
   { key: 'lastSeen', label: 'Last Seen' },
 ]
-
-function formatTime(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return d.toLocaleString()
-}
 
 function SortIndicator({ active, dir }) {
   if (!active) return <span className="text-radar-600 ml-1">&#x2195;</span>
@@ -30,6 +25,12 @@ function NeighbourTable({ neighbours, showInterface = true }) {
     : COLUMNS.filter((c) => c.key !== 'interface')
   const [sortKey, setSortKey] = useState('lastSeen')
   const [sortDir, setSortDir] = useState('desc')
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   const handleSort = (key) => {
     if (sortKey === key) {
@@ -89,11 +90,11 @@ function NeighbourTable({ neighbours, showInterface = true }) {
                 <td className="px-2 py-1.5 font-mono text-xs">
                   {n.ipv6.join(', ') || '—'}
                 </td>
-                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap">
-                  {formatTime(n.firstSeen)}
+                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.firstSeen}>
+                  {n.firstSeen ? format(n.firstSeen) : ''}
                 </td>
-                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap">
-                  {formatTime(n.lastSeen)}
+                <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.lastSeen}>
+                  {n.lastSeen ? format(n.lastSeen) : ''}
                 </td>
               </tr>
             ))}
@@ -139,8 +140,8 @@ function NeighbourTable({ neighbours, showInterface = true }) {
               </div>
             )}
             <div className="flex justify-between text-xs text-radar-500 mt-2">
-              <span>First: {formatTime(n.firstSeen)}</span>
-              <span>Last: {formatTime(n.lastSeen)}</span>
+              <span title={n.firstSeen}>First: {n.firstSeen ? format(n.firstSeen) : ''}</span>
+              <span title={n.lastSeen}>Last: {n.lastSeen ? format(n.lastSeen) : ''}</span>
             </div>
           </div>
         ))}
