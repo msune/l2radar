@@ -8,6 +8,7 @@ import SearchBar from './components/SearchBar'
 import InterfaceTabs from './components/InterfaceTabs'
 import InterfaceInfo from './components/InterfaceInfo'
 import HeaderMenu from './components/HeaderMenu'
+import SplashScreen from './components/SplashScreen'
 import logoSmall from '../../assets/img/logo_small.png'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const username = useUsername()
   const [search, setSearch] = useState('')
   const [selectedInterface, setSelectedInterface] = useState('')
+  const [splashDone, setSplashDone] = useState(false)
 
   const interfaces = getInterfaces(neighbours)
   const filtered = filterNeighbours(neighbours, {
@@ -24,6 +26,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-radar-950 text-radar-100 flex flex-col">
+      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
       <header className="bg-radar-900 border-b border-radar-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src={logoSmall} alt="L2 Radar" className="h-7" />
