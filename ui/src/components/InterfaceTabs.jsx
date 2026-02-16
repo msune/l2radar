@@ -1,3 +1,5 @@
+import { Layers, Cable } from 'lucide-react'
+
 function InterfaceTabs({ interfaces, selectedInterface, onInterfaceChange }) {
   const isActive = (iface) =>
     iface === '' ? selectedInterface === '' : selectedInterface === iface
@@ -10,17 +12,19 @@ function InterfaceTabs({ interfaces, selectedInterface, onInterfaceChange }) {
   return (
     <div className="flex gap-1 overflow-x-auto border-b border-radar-700 mb-4">
       <button
-        className={`${baseClasses} ${isActive('') ? activeClasses : inactiveClasses}`}
+        className={`${baseClasses} ${isActive('') ? activeClasses : inactiveClasses} flex items-center gap-1.5`}
         onClick={() => onInterfaceChange('')}
       >
+        <Layers size={14} />
         All
       </button>
       {interfaces.map((iface) => (
         <button
           key={iface}
-          className={`${baseClasses} ${isActive(iface) ? activeClasses : inactiveClasses}`}
+          className={`${baseClasses} ${isActive(iface) ? activeClasses : inactiveClasses} flex items-center gap-1.5`}
           onClick={() => onInterfaceChange(iface)}
         >
+          <Cable size={14} />
           {iface}
         </button>
       ))}
