@@ -27,11 +27,14 @@ function SplashScreen({ onDone }) {
       }}
       onClick={() => setFading(true)}
     >
-      <img
-        src={logoSplash}
-        alt="L2 Radar"
-        className="max-w-[60vw] lg:max-w-[45vw] max-h-[60vh] lg:max-h-[45vh] w-auto h-auto object-contain rounded-2xl"
-      />
+      <div className="flex flex-col items-center gap-3">
+        <img
+          src={logoSplash}
+          alt="L2 Radar"
+          className="max-w-[60vw] lg:max-w-[45vw] max-h-[60vh] lg:max-h-[45vh] w-auto h-auto object-contain rounded-2xl"
+        />
+        <span className="text-sm text-radar-400">{__APP_VERSION__}</span>
+      </div>
     </div>
   )
 }
