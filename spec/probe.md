@@ -92,7 +92,9 @@ probe/
   [--export-dir <dir>] [--export-interval <duration>]`
 - Flags:
   - `--iface` (repeatable, required): interface to monitor. `any` =
-    all L2 interfaces except loopbacks.
+    external interfaces (excludes loopbacks and virtual interfaces like
+    docker*, veth*, br-*, virbr*). `all` = all L2 interfaces except
+    loopbacks.
   - `--pin-path`: base path for pinning (default `/sys/fs/bpf/l2radar`).
   - `--export-dir` (optional): periodically export JSON to this dir.
   - `--export-interval`: export frequency (default `5s`).

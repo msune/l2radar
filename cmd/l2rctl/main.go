@@ -58,7 +58,7 @@ func runStart(args []string, r docker.Runner) error {
 
 	// Probe flags
 	var ifaces multiString
-	fs.Var(&ifaces, "iface", "Interface to monitor (repeatable)")
+	fs.Var(&ifaces, "iface", "Interface to monitor (repeatable; \"any\"=external, \"all\"=all non-loopback)")
 	exportDir := fs.String("export-dir", "/tmp/l2radar", "Export directory")
 	exportInterval := fs.String("export-interval", "5s", "Export interval")
 	pinPath := fs.String("pin-path", "/sys/fs/bpf/l2radar", "BPF pin path")

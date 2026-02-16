@@ -17,7 +17,7 @@ to `docker` CLI (no Docker SDK).
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--iface <name>` | `any` | Interface to monitor (repeatable) |
+| `--iface <name>` | `any` | Interface to monitor (repeatable; `any` = external, `all` = all non-loopback) |
 | `--export-dir <dir>` | `/tmp/l2radar` | Host directory for JSON exports |
 | `--export-interval <dur>` | `5s` | Export interval |
 | `--pin-path <path>` | `/sys/fs/bpf/l2radar` | BPF pin path |
