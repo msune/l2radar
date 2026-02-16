@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNeighbourData } from './hooks/useNeighbourData'
 import { useUsername } from './hooks/useUsername'
 import { filterNeighbours, getInterfaces } from './lib/filter'
+import { hasSplashCookie, setSplashCookie } from './lib/splash'
 import SummaryStats from './components/SummaryStats'
 import NeighbourTable from './components/NeighbourTable'
 import SearchBar from './components/SearchBar'
@@ -16,7 +17,7 @@ function App() {
   const username = useUsername()
   const [search, setSearch] = useState('')
   const [selectedInterface, setSelectedInterface] = useState('')
-  const [splashDone, setSplashDone] = useState(false)
+  const [splashDone, setSplashDone] = useState(hasSplashCookie)
 
   const interfaces = getInterfaces(neighbours)
   const filtered = filterNeighbours(neighbours, {
@@ -26,7 +27,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-radar-950 text-radar-100 flex flex-col">
-      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
+      {!splashDone && <SplashScreen onDone={() => { setSplashCookie(); setSplashDone(true) }} />}
       <header className="bg-radar-900 border-b border-radar-700 px-4 py-1 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a
