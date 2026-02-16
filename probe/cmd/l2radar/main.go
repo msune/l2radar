@@ -36,8 +36,26 @@ func defaultListInterfaces() ([]net.Interface, error) {
 	return net.Interfaces()
 }
 
-// resolveInterfaces expands "any" to all L2 interfaces except loopbacks.
-// Non-"any" values are returned as-is. Duplicates are removed.
+// virtualPrefixes lists interface name prefixes considered virtual/infrastructure.
+// These are filtered out by the "any" keyword.
+var virtualPrefixes = []string{"veth", "docker", "br-", "virbr"}
+
+// isVirtualInterface returns true if the interface name matches a virtual prefix.
+func isVirtualInterface(name string) bool {
+	for _, prefix := range virtualPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveInterfaces expands "any" and "all" keywords to matching interfaces.
+//   - "all": all L2 interfaces except loopbacks.
+//   - "any": all external interfaces (excludes loopbacks and virtual interfaces
+//     like docker*, veth*, br-*, virbr*).
+//
+// Non-keyword values are returned as-is. Duplicates are removed.
 func resolveInterfaces(ifaces []string) ([]string, error) {
 	seen := make(map[string]bool)
 	var result []string
@@ -49,13 +67,18 @@ func resolveInterfaces(ifaces []string) ([]string, error) {
 	}
 
 	for _, name := range ifaces {
-		if strings.EqualFold(name, "any") {
+		lower := strings.ToLower(name)
+		if lower == "any" || lower == "all" {
+			filterVirtual := lower == "any"
 			allIfaces, err := listInterfaces()
 			if err != nil {
 				return nil, fmt.Errorf("listing interfaces: %w", err)
 			}
 			for _, iface := range allIfaces {
 				if iface.Flags&net.FlagLoopback != 0 {
+					continue
+				}
+				if filterVirtual && isVirtualInterface(iface.Name) {
 					continue
 				}
 				add(iface.Name)
@@ -97,7 +120,7 @@ func runDefault(args []string) {
 	pinPath := fs.String("pin-path", loader.DefaultPinPath, "base path for pinning eBPF maps")
 	exportDir := fs.String("export-dir", "", "directory to write JSON files (disabled if empty)")
 	exportInterval := fs.Duration("export-interval", 5*time.Second, "export interval (only used with -export-dir)")
-	fs.Var(&ifaces, "iface", "network interface to monitor (repeatable; \"any\" for all L2 interfaces)")
+	fs.Var(&ifaces, "iface", "network interface to monitor (repeatable; \"any\" for external interfaces, \"all\" for all L2 interfaces)")
 	fs.Parse(args)
 
 	if len(ifaces) == 0 {
