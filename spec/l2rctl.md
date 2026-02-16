@@ -1,0 +1,106 @@
+# l2rctl — Container Management CLI
+
+Self-contained Go binary that wraps Docker CLI operations for starting,
+stopping, monitoring, and inspecting l2radar containers.
+
+## Location
+
+`cmd/l2rctl/` — own Go module (`github.com/msune/l2rctl`), Go 1.24.
+Only dependency: `gopkg.in/yaml.v3` for auth.yaml generation. Shells out
+to `docker` CLI (no Docker SDK).
+
+## Subcommands
+
+### `l2rctl start [all|probe|ui]` (default: all)
+
+**Probe flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--iface <name>` | `any` | Interface to monitor (repeatable) |
+| `--export-dir <dir>` | `/tmp/l2radar` | Host directory for JSON exports |
+| `--export-interval <dur>` | `5s` | Export interval |
+| `--pin-path <path>` | `/sys/fs/bpf/l2radar` | BPF pin path |
+| `--probe-image <image>` | `ghcr.io/msune/l2radar:latest` | Probe image |
+| `--probe-docker-args <args>` | | Extra `docker run` arguments |
+
+**UI flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--tls-dir <path>` | | TLS cert directory, mounted as `/etc/nginx/ssl:ro` |
+| `--user-file <path>` | | Auth file, mounted as `/etc/l2radar/auth.yaml:ro` |
+| `--user <user:pass>` | | Inline user (repeatable), generates temp auth.yaml |
+| `--enable-http` | false | Enable HTTP port 80 |
+| `--ui-image <image>` | `ghcr.io/msune/l2radar-ui:latest` | UI image |
+| `--ui-docker-args <args>` | | Extra `docker run` arguments |
+
+`--user-file` and `--user` are mutually exclusive.
+
+**Container names:** `l2radar` (probe), `l2radar-ui` (UI).
+
+**Probe always gets:**
+```
+--privileged --network=host \
+  -v /sys/fs/bpf:/sys/fs/bpf \
+  -v <export-dir>:<export-dir>
+```
+
+**UI always gets:**
+```
+-v <export-dir>:<export-dir>:ro -p 443:443
+```
+
+**Pre-start check:** if container exists and is running → error; if
+stopped → remove then start.
+
+### `l2rctl stop [all|probe|ui]` (default: all)
+
+`docker stop` + `docker rm` for target containers. Ignores "not found"
+errors.
+
+### `l2rctl status`
+
+`docker inspect` both containers. Prints table:
+
+```
+CONTAINER    STATUS     STARTED
+l2radar      running    2025-06-01T12:00:00Z
+l2radar-ui   not found  -
+```
+
+### `l2rctl dump --iface <name> [-o json]`
+
+- **Table output** (default): `docker exec l2radar l2radar dump --iface <name>`
+- **JSON output** (`-o json`): reads `<export-dir>/neigh-<iface>.json`
+  directly from host.
+
+## Auth Generation
+
+`--user admin:secret` generates a temp file at `/tmp/l2rctl-auth.yaml`:
+
+```yaml
+users:
+  - username: admin
+    password: secret
+```
+
+Mounted as `/etc/l2radar/auth.yaml:ro` into the UI container.
+
+Validation: split on first `:`, error if missing colon or empty parts.
+
+## Docker Wrapper
+
+```go
+type Runner interface {
+    Run(args ...string) (stdout, stderr string, err error)
+    RunAttached(args ...string) error
+}
+```
+
+Real implementation uses `os/exec`. Tests use a mock that records calls.
+
+## Testing
+
+All packages test via mock `Runner`. TDD: write failing tests first,
+then implement.
