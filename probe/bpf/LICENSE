@@ -1,0 +1,24 @@
+The eBPF code in this directory is dual-licensed:
+
+  SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+
+You may use, distribute, and modify this code under the terms of either
+the BSD 2-Clause License or the GNU General Public License v2.0, at your
+option.
+
+See the top-level LICENSE file for the full BSD 2-Clause text.
+See below for the GPL 2.0 notice.
+
+---
+
+GNU GENERAL PUBLIC LICENSE
+Version 2, June 1991
+
+Copyright (C) 1989, 1991 Free Software Foundation, Inc.
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+The full text of the GPL-2.0 is available at:
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html

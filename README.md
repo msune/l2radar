@@ -130,7 +130,8 @@ cd cmd/l2rctl && go test -v ./...
 
 ## 📄 License
 
-See [LICENSE](LICENSE).
+BSD 2-Clause. eBPF code (`probe/bpf/`) is dual-licensed BSD-2-Clause OR
+GPL-2.0. See [LICENSE](LICENSE).
 
 ---
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
 // l2radar - passive L2 neighbour monitor via TC/TCX
 
 #include <linux/bpf.h>
@@ -11,7 +11,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-char LICENSE[] SEC("license") = "GPL";
+char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define MAX_IPV4 4
 #define MAX_IPV6 4
