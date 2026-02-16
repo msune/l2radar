@@ -109,6 +109,36 @@ jobs:
           name: l2rctl
           path: cmd/l2rctl/l2rctl
 
+  release-l2rctl:
+    runs-on: ubuntu-24.04
+    needs: [build-l2rctl, build-probe, build-ui]
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: cmd/l2rctl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: cmd/l2rctl/go.sum
+
+      - name: Build linux/amd64
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o l2rctl-linux-amd64 .
+
+      - name: Build linux/arm64
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o l2rctl-linux-arm64 .
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            cmd/l2rctl/l2rctl-linux-amd64
+            cmd/l2rctl/l2rctl-linux-arm64
+
   build-probe:
     runs-on: ubuntu-24.04
     needs: test-probe
