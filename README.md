@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/img/logo.png" alt="L2 Radar" width="400">
+  <img src="assets/img/logo_wiki.png" alt="L2 Radar">
 </p>
 
 <p align="center">
@@ -117,16 +117,7 @@ network calls between them.
 
 ## 🛠️ Development
 
-```bash
-# Probe tests (requires BPF-capable kernel)
-cd probe && go test -v ./...
-
-# UI tests
-cd ui && npm test
-
-# l2rctl tests
-cd cmd/l2rctl && go test -v ./...
-```
+TODO
 
 ## 📄 License
 
