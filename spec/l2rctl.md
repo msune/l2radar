@@ -58,6 +58,9 @@ alphanumeric password) and printed after successful start.
 matching images with the same name). If container is running → error;
 if stopped → remove then start.
 
+**Image pull:** `docker pull --quiet <image>` runs before every
+`docker run`. Progress output is suppressed; only errors are surfaced.
+
 ### `l2rctl stop [all|probe|ui]` (default: all)
 
 `docker stop` + `docker rm` for target containers. Ignores "not found"
