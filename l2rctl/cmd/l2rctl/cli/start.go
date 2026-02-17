@@ -150,11 +150,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	if needsUI {
-		var urlUser, urlPass string
-		if len(users) > 0 {
-			urlUser, urlPass, _ = auth.ParseUser(users[0])
-		}
-		urls := start.BuildAccessURLs(startHTTPSPort, startHTTPPort, startBind, startEnableHTTP, urlUser, urlPass)
+		urls := start.BuildAccessURLs(startHTTPSPort, startHTTPPort, startBind, startEnableHTTP)
 		fmt.Println()
 		fmt.Println("UI available at:")
 		for _, u := range urls {
