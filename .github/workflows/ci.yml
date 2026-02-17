@@ -177,3 +177,25 @@ jobs:
           file: ui/Dockerfile
           push: true
           tags: ${{ steps.tags.outputs.ui_tags }}
+
+  update-latest-tag:
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name == 'push'
+      && github.ref_type == 'tag'
+      && startsWith(github.ref_name, 'v')
+      && contains(github.ref_name, '.')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Move latest tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f -a latest -m "Latest release: ${GITHUB_REF_NAME}"
+          git push -f origin latest
