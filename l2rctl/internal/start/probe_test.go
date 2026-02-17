@@ -255,7 +255,7 @@ func TestStartProbePullFailure(t *testing.T) {
 			return ""
 		},
 		ErrFn: func(args []string) error {
-			if len(args) >= 1 && args[0] == "pull" {
+			if len(args) >= 1 && (args[0] == "pull" || args[0] == "image") {
 				return fmt.Errorf("exit status 1")
 			}
 			return nil

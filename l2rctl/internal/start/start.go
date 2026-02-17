@@ -77,13 +77,18 @@ func ensureNotRunning(r docker.Runner, name string) error {
 }
 
 // pullImage pulls the latest version of an image silently.
-// Only errors are surfaced; progress output is suppressed.
+// If the pull fails (e.g. local-only image), it checks whether
+// the image exists locally and only returns an error if it doesn't.
 func pullImage(r docker.Runner, image string) error {
 	_, stderr, err := r.Run("pull", "--quiet", image)
-	if err != nil {
-		return fmt.Errorf("pull image %q: %s", image, stderr)
+	if err == nil {
+		return nil
 	}
-	return nil
+	// Pull failed — check if image exists locally.
+	if _, _, inspectErr := r.Run("image", "inspect", image); inspectErr == nil {
+		return nil
+	}
+	return fmt.Errorf("pull image %q: %s", image, stderr)
 }
 
 // splitExtraArgs splits a space-separated string into args.
