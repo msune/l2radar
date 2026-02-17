@@ -41,7 +41,13 @@ ARP and NDP traffic, and presents everything in a slick dark-themed dashboard.
 **1. Install `l2rctl`:**
 
 ```bash
-go install github.com/msune/l2radar/l2rctl/cmd/l2rctl@latest
+curl -fsSL https://raw.githubusercontent.com/msune/l2radar/latest/install-l2rctl.sh | bash
+```
+
+To install a specific version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/msune/l2radar/latest/install-l2rctl.sh | bash -s -- v0.1.0
 ```
 
 **2. Start everything:**
