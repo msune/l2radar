@@ -88,27 +88,6 @@ jobs:
 
       - run: go test -v -count=1 ./...
 
-  build-l2rctl:
-    runs-on: ubuntu-24.04
-    needs: test-l2rctl
-    defaults:
-      run:
-        working-directory: l2rctl/cmd/l2rctl
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          cache-dependency-path: l2rctl/go.sum
-
-      - run: CGO_ENABLED=0 go build -o l2rctl .
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: l2rctl
-          path: l2rctl/cmd/l2rctl/l2rctl
-
   build-probe:
     runs-on: ubuntu-24.04
     needs: test-probe
@@ -142,50 +121,6 @@ jobs:
           push: false
           tags: l2radar-ui:ci
 
-  publish-l2rctl:
-    runs-on: ubuntu-24.04
-    needs: [build-l2rctl, build-probe, build-ui]
-    permissions:
-      contents: write
-    defaults:
-      run:
-        working-directory: l2rctl/cmd/l2rctl
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          cache-dependency-path: l2rctl/go.sum
-
-      - name: Build linux/amd64
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o l2rctl-linux-amd64 .
-
-      - name: Build linux/arm64
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o l2rctl-linux-arm64 .
-
-      # Upload to the actual tag ONLY if ref is a tag
-      - name: Upload to GitHub Release (tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          overwrite: true
-          files: |
-            l2rctl/cmd/l2rctl/l2rctl-linux-amd64
-            l2rctl/cmd/l2rctl/l2rctl-linux-arm64
-
-      # Upload rolling "latest"
-      - name: Upload to GitHub Release (latest)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          make_latest: true
-          overwrite: true
-          files: |
-            l2rctl/cmd/l2rctl/l2rctl-linux-amd64
-            l2rctl/cmd/l2rctl/l2rctl-linux-arm64
-
   publish-docker:
     runs-on: ubuntu-24.04
     needs: [build-probe, build-ui]
@@ -214,11 +149,11 @@ jobs:
 
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             VERSION="${GITHUB_REF_NAME}"
-            PROBE_TAGS="${PROBE_IMAGE}:${VERSION}"
-            UI_TAGS="${UI_IMAGE}:${VERSION}"
+            PROBE_TAGS="${PROBE_IMAGE}:${VERSION},${PROBE_IMAGE}:latest"
+            UI_TAGS="${UI_IMAGE}:${VERSION},${UI_IMAGE}:latest"
           elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            PROBE_TAGS="${PROBE_IMAGE}:latest"
-            UI_TAGS="${UI_IMAGE}:latest"
+            PROBE_TAGS="${PROBE_IMAGE}:bleeding-edge"
+            UI_TAGS="${UI_IMAGE}:bleeding-edge"
           else
             BRANCH="$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')"
             PROBE_TAGS="${PROBE_IMAGE}:${BRANCH}"
