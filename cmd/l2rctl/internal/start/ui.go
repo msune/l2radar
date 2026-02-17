@@ -12,6 +12,9 @@ type UIOpts struct {
 	TLSDir     string
 	UserFile   string
 	EnableHTTP bool
+	HTTPSPort  int
+	HTTPPort   int
+	Bind       string
 	Image      string
 	ExtraArgs  string
 }
@@ -27,7 +30,7 @@ func StartUI(r docker.Runner, opts UIOpts) error {
 
 	args := []string{"run", "-d",
 		"-v", fmt.Sprintf("%s:%s:ro", opts.ExportDir, opts.ExportDir),
-		"-p", "443:443",
+		"-p", fmt.Sprintf("%s:%d:443", opts.Bind, opts.HTTPSPort),
 		"--name", UIContainer,
 	}
 
@@ -40,7 +43,7 @@ func StartUI(r docker.Runner, opts UIOpts) error {
 	}
 
 	if opts.EnableHTTP {
-		args = append(args, "-p", "80:80")
+		args = append(args, "-p", fmt.Sprintf("%s:%d:80", opts.Bind, opts.HTTPPort))
 	}
 
 	args = append(args, splitExtraArgs(opts.ExtraArgs)...)

@@ -71,6 +71,9 @@ func runStart(args []string, r docker.Runner) error {
 	var users multiString
 	fs.Var(&users, "user", "User in user:pass format (repeatable)")
 	enableHTTP := fs.Bool("enable-http", false, "Enable HTTP port 80")
+	httpsPort := fs.Int("https-port", 12443, "Host port for HTTPS (mapped to container 443)")
+	httpPort := fs.Int("http-port", 12080, "Host port for HTTP (mapped to container 80)")
+	bind := fs.String("bind", "127.0.0.1", "Bind address for exposed ports (e.g. 0.0.0.0)")
 	uiImage := fs.String("ui-image", "ghcr.io/msune/l2radar-ui:latest", "UI image")
 	uiDockerArgs := fs.String("ui-docker-args", "", "Extra docker args for UI")
 
@@ -128,6 +131,9 @@ func runStart(args []string, r docker.Runner) error {
 		TLSDir:     *tlsDir,
 		UserFile:   authFile,
 		EnableHTTP: *enableHTTP,
+		HTTPSPort:  *httpsPort,
+		HTTPPort:   *httpPort,
+		Bind:       *bind,
 		Image:      *uiImage,
 		ExtraArgs:  *uiDockerArgs,
 	}
