@@ -5,7 +5,7 @@ stopping, monitoring, and inspecting l2radar containers.
 
 ## Location
 
-`cmd/l2rctl/` — own Go module (`github.com/msune/l2rctl`), Go 1.24.
+`l2rctl/` — own Go module (`github.com/msune/l2rctl`), Go 1.24.
 Only dependency: `gopkg.in/yaml.v3` for auth.yaml generation. Shells out
 to `docker` CLI (no Docker SDK).
 

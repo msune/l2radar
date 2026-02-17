@@ -30,10 +30,11 @@ Assume production-quality standards.
 
 Passive L2 neighbour monitor using eBPF (TC/TCX). Three components:
 
-1. **eBPF probe** — inspects packets, writes unicast MACs + ARP/NDP IPs
-   into per-interface BPF maps. See [`spec/probe.md`](spec/probe.md).
-2. **Go CLI** (`l2radar`) — attaches probes, exports JSON, `dump`
-   subcommand. See [`spec/probe.md`](spec/probe.md).
+1. **eBPF probe + Go CLI** (`l2radar`) — inspects packets, writes unicast
+   MACs + ARP/NDP IPs into per-interface BPF maps; Go loader + CLI.
+   See [`spec/probe.md`](spec/probe.md).
+2. **l2rctl** — container management CLI wrapping Docker operations.
+   See [`spec/l2rctl.md`](spec/l2rctl.md).
 3. **Web UI** — React + Tailwind dashboard served by nginx. See
    [`spec/ui.md`](spec/ui.md).
 
@@ -42,8 +43,8 @@ CI pipeline: [`spec/ci.md`](spec/ci.md).
 ### Tech stack
 
 - eBPF C programs for passive monitoring
+- Golang for the probe CLI (`l2radar`) and container management CLI (`l2rctl`)
 - Web UI: React + Tailwind CSS, built with Vite, served by nginx
-- Golang for the CLI tool
 
 ### Constraints
 
