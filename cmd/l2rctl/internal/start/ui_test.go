@@ -223,3 +223,61 @@ func TestStartUINotFound(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestStartUIInspectUsesTypeContainer(t *testing.T) {
+	m := &docker.MockRunner{
+		ErrFn: func(args []string) error {
+			if len(args) >= 1 && args[0] == "inspect" {
+				return fmt.Errorf("Error: No such container")
+			}
+			return nil
+		},
+	}
+	opts := UIOpts{
+		ExportDir: "/tmp/l2radar",
+		Image:     "ghcr.io/msune/l2radar-ui:latest",
+	}
+
+	_ = StartUI(m, opts)
+
+	var inspectCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "inspect" {
+			inspectCall = c
+			break
+		}
+	}
+	if inspectCall == nil {
+		t.Fatal("no 'inspect' call found")
+	}
+	args := strings.Join(inspectCall, " ")
+	if !strings.Contains(args, "--type container") {
+		t.Errorf("inspect missing --type container flag: %s", args)
+	}
+}
+
+func TestStartUIImageOnlyNoContainer(t *testing.T) {
+	m := &docker.MockRunner{
+		ErrFn: func(args []string) error {
+			if len(args) >= 1 && args[0] == "inspect" {
+				return fmt.Errorf("Error: No such container")
+			}
+			return nil
+		},
+	}
+	opts := UIOpts{
+		ExportDir: "/tmp/l2radar",
+		Image:     "ghcr.io/msune/l2radar-ui:latest",
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("image-only should not block start: %v", err)
+	}
+
+	for _, c := range m.Calls {
+		if len(c) >= 1 && c[0] == "rm" {
+			t.Error("unexpected 'rm' call when only image exists")
+		}
+	}
+}

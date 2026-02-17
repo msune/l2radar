@@ -28,7 +28,7 @@ type row struct {
 }
 
 func inspectContainer(r docker.Runner, name string) row {
-	stdout, _, err := r.Run("inspect", name)
+	stdout, _, err := r.Run("inspect", "--type", "container", name)
 	if err != nil {
 		return row{name: name, status: "not found", started: "-"}
 	}

@@ -41,7 +41,7 @@ type containerState struct {
 // checkContainer checks if a container exists and its state.
 // Returns: "running", "stopped", or "notfound".
 func checkContainer(r docker.Runner, name string) (string, error) {
-	stdout, _, err := r.Run("inspect", name)
+	stdout, _, err := r.Run("inspect", "--type", "container", name)
 	if err != nil {
 		return "notfound", nil
 	}

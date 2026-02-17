@@ -206,3 +206,70 @@ func TestStartProbeNotFound(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestStartProbeInspectUsesTypeContainer(t *testing.T) {
+	m := &docker.MockRunner{
+		ErrFn: func(args []string) error {
+			if len(args) >= 1 && args[0] == "inspect" {
+				return fmt.Errorf("Error: No such container: l2radar")
+			}
+			return nil
+		},
+	}
+	opts := ProbeOpts{
+		Ifaces:         []string{"any"},
+		ExportDir:      "/tmp/l2radar",
+		ExportInterval: "5s",
+		PinPath:        "/sys/fs/bpf/l2radar",
+		Image:          "ghcr.io/msune/l2radar:latest",
+	}
+
+	_ = StartProbe(m, opts)
+
+	var inspectCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "inspect" {
+			inspectCall = c
+			break
+		}
+	}
+	if inspectCall == nil {
+		t.Fatal("no 'inspect' call found")
+	}
+	args := strings.Join(inspectCall, " ")
+	if !strings.Contains(args, "--type container") {
+		t.Errorf("inspect missing --type container flag: %s", args)
+	}
+}
+
+func TestStartProbeImageOnlyNoContainer(t *testing.T) {
+	// Simulate: image named "l2radar" exists but no container.
+	// docker inspect --type container returns an error in this case.
+	m := &docker.MockRunner{
+		ErrFn: func(args []string) error {
+			if len(args) >= 1 && args[0] == "inspect" {
+				return fmt.Errorf("Error: No such container: l2radar")
+			}
+			return nil
+		},
+	}
+	opts := ProbeOpts{
+		Ifaces:         []string{"any"},
+		ExportDir:      "/tmp/l2radar",
+		ExportInterval: "5s",
+		PinPath:        "/sys/fs/bpf/l2radar",
+		Image:          "ghcr.io/msune/l2radar:latest",
+	}
+
+	err := StartProbe(m, opts)
+	if err != nil {
+		t.Fatalf("image-only should not block start: %v", err)
+	}
+
+	// Verify no rm was called (there's no container to remove)
+	for _, c := range m.Calls {
+		if len(c) >= 1 && c[0] == "rm" {
+			t.Error("unexpected 'rm' call when only image exists")
+		}
+	}
+}

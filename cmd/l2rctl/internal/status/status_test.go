@@ -12,10 +12,11 @@ func TestStatusBothRunning(t *testing.T) {
 	m := &docker.MockRunner{
 		StdoutFn: func(args []string) string {
 			if len(args) >= 2 && args[0] == "inspect" {
-				if args[1] == "l2radar" {
+				last := args[len(args)-1]
+				if last == "l2radar" {
 					return `[{"State":{"Status":"running","StartedAt":"2025-06-01T12:00:00Z"}}]`
 				}
-				if args[1] == "l2radar-ui" {
+				if last == "l2radar-ui" {
 					return `[{"State":{"Status":"running","StartedAt":"2025-06-01T12:01:00Z"}}]`
 				}
 			}
@@ -60,13 +61,13 @@ func TestStatusNotFound(t *testing.T) {
 func TestStatusMixed(t *testing.T) {
 	m := &docker.MockRunner{
 		StdoutFn: func(args []string) string {
-			if len(args) >= 2 && args[0] == "inspect" && args[1] == "l2radar" {
+			if len(args) >= 2 && args[0] == "inspect" && args[len(args)-1] == "l2radar" {
 				return `[{"State":{"Status":"running","StartedAt":"2025-06-01T12:00:00Z"}}]`
 			}
 			return ""
 		},
 		ErrFn: func(args []string) error {
-			if len(args) >= 2 && args[0] == "inspect" && args[1] == "l2radar-ui" {
+			if len(args) >= 2 && args[0] == "inspect" && args[len(args)-1] == "l2radar-ui" {
 				return fmt.Errorf("Error: No such container")
 			}
 			return nil
