@@ -1,40 +1,9 @@
-package main
+package cli
 
 import (
 	"net"
 	"testing"
 )
-
-func TestStringSliceSet(t *testing.T) {
-	var s stringSlice
-	if err := s.Set("eth0"); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if err := s.Set("wlan0"); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(s) != 2 {
-		t.Fatalf("expected 2 elements, got %d", len(s))
-	}
-	if s[0] != "eth0" || s[1] != "wlan0" {
-		t.Errorf("unexpected values: %v", s)
-	}
-}
-
-func TestStringSliceString(t *testing.T) {
-	s := stringSlice{"eth0", "wlan0"}
-	str := s.String()
-	if str != "eth0, wlan0" {
-		t.Errorf("expected 'eth0, wlan0', got '%s'", str)
-	}
-}
-
-func TestStringSliceEmpty(t *testing.T) {
-	var s stringSlice
-	if s.String() != "" {
-		t.Errorf("expected empty string, got '%s'", s.String())
-	}
-}
 
 func TestResolveInterfaces_ExplicitNames(t *testing.T) {
 	result, err := resolveInterfaces([]string{"eth0", "wlan0"})
