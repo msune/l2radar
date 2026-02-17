@@ -14,21 +14,22 @@ var startCmd = &cobra.Command{
 	Short: "Start l2radar containers",
 	Long:  "Start l2radar containers.\n\nComponents: all (default), probe, ui",
 	Args:  cobra.MaximumNArgs(1),
-	RunE:  runStart,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runStartOrInstall(cmd, args, "")
+	},
 }
 
-// Probe flags
+// Shared flags between start and install.
 var (
+	// Probe flags
 	startIfaces          []string
 	startExportDir       string
 	startExportInterval  string
 	startPinPath         string
 	startProbeImage      string
 	startProbeDockerArgs string
-)
 
-// UI flags
-var (
+	// UI flags
 	startTLSDir       string
 	startUserFile     string
 	startUsers        []string
@@ -40,30 +41,36 @@ var (
 	startUIDockerArgs string
 )
 
-func init() {
+// addStartFlags registers the shared probe/UI flags on a command.
+func addStartFlags(cmd *cobra.Command) {
 	// Probe flags
-	startCmd.Flags().StringArrayVar(&startIfaces, "iface", nil, "interface to monitor (repeatable; \"any\"=external, \"all\"=all non-loopback)")
-	startCmd.Flags().StringVar(&startExportDir, "export-dir", "/tmp/l2radar", "export directory")
-	startCmd.Flags().StringVar(&startExportInterval, "export-interval", "5s", "export interval")
-	startCmd.Flags().StringVar(&startPinPath, "pin-path", "/sys/fs/bpf/l2radar", "BPF pin path")
-	startCmd.Flags().StringVar(&startProbeImage, "probe-image", "ghcr.io/msune/l2radar:latest", "probe image")
-	startCmd.Flags().StringVar(&startProbeDockerArgs, "probe-docker-args", "", "extra docker args for probe")
+	cmd.Flags().StringArrayVar(&startIfaces, "iface", nil, "interface to monitor (repeatable; \"any\"=external, \"all\"=all non-loopback)")
+	cmd.Flags().StringVar(&startExportDir, "export-dir", "/tmp/l2radar", "export directory")
+	cmd.Flags().StringVar(&startExportInterval, "export-interval", "5s", "export interval")
+	cmd.Flags().StringVar(&startPinPath, "pin-path", "/sys/fs/bpf/l2radar", "BPF pin path")
+	cmd.Flags().StringVar(&startProbeImage, "probe-image", "ghcr.io/msune/l2radar:latest", "probe image")
+	cmd.Flags().StringVar(&startProbeDockerArgs, "probe-docker-args", "", "extra docker args for probe")
 
 	// UI flags
-	startCmd.Flags().StringVar(&startTLSDir, "tls-dir", "", "TLS cert directory")
-	startCmd.Flags().StringVar(&startUserFile, "user-file", "", "auth file path")
-	startCmd.Flags().StringArrayVar(&startUsers, "user", nil, "user in user:pass format (repeatable)")
-	startCmd.Flags().BoolVar(&startEnableHTTP, "enable-http", false, "enable HTTP port 80")
-	startCmd.Flags().IntVar(&startHTTPSPort, "https-port", 12443, "host port for HTTPS (mapped to container 443)")
-	startCmd.Flags().IntVar(&startHTTPPort, "http-port", 12080, "host port for HTTP (mapped to container 80)")
-	startCmd.Flags().StringVar(&startBind, "bind", "127.0.0.1", "bind address for exposed ports (e.g. 0.0.0.0)")
-	startCmd.Flags().StringVar(&startUIImage, "ui-image", "ghcr.io/msune/l2radar-ui:latest", "UI image")
-	startCmd.Flags().StringVar(&startUIDockerArgs, "ui-docker-args", "", "extra docker args for UI")
+	cmd.Flags().StringVar(&startTLSDir, "tls-dir", "", "TLS cert directory")
+	cmd.Flags().StringVar(&startUserFile, "user-file", "", "auth file path")
+	cmd.Flags().StringArrayVar(&startUsers, "user", nil, "user in user:pass format (repeatable)")
+	cmd.Flags().BoolVar(&startEnableHTTP, "enable-http", false, "enable HTTP port 80")
+	cmd.Flags().IntVar(&startHTTPSPort, "https-port", 12443, "host port for HTTPS (mapped to container 443)")
+	cmd.Flags().IntVar(&startHTTPPort, "http-port", 12080, "host port for HTTP (mapped to container 80)")
+	cmd.Flags().StringVar(&startBind, "bind", "127.0.0.1", "bind address for exposed ports (e.g. 0.0.0.0)")
+	cmd.Flags().StringVar(&startUIImage, "ui-image", "ghcr.io/msune/l2radar-ui:latest", "UI image")
+	cmd.Flags().StringVar(&startUIDockerArgs, "ui-docker-args", "", "extra docker args for UI")
+}
 
+func init() {
+	addStartFlags(startCmd)
 	rootCmd.AddCommand(startCmd)
 }
 
-func runStart(cmd *cobra.Command, args []string) error {
+// runStartOrInstall is the shared logic for both start and install.
+// restartPolicy is empty for start, "unless-stopped" for install.
+func runStartOrInstall(cmd *cobra.Command, args []string, restartPolicy string) error {
 	r := NewRunner()
 
 	target, err := start.ParseTarget(args)
@@ -111,18 +118,20 @@ func runStart(cmd *cobra.Command, args []string) error {
 		PinPath:        startPinPath,
 		Image:          startProbeImage,
 		ExtraArgs:      startProbeDockerArgs,
+		RestartPolicy:  restartPolicy,
 	}
 
 	uiOpts := start.UIOpts{
-		ExportDir:  startExportDir,
-		TLSDir:     startTLSDir,
-		UserFile:   authFile,
-		EnableHTTP: startEnableHTTP,
-		HTTPSPort:  startHTTPSPort,
-		HTTPPort:   startHTTPPort,
-		Bind:       startBind,
-		Image:      startUIImage,
-		ExtraArgs:  startUIDockerArgs,
+		ExportDir:     startExportDir,
+		TLSDir:        startTLSDir,
+		UserFile:      authFile,
+		EnableHTTP:    startEnableHTTP,
+		HTTPSPort:     startHTTPSPort,
+		HTTPPort:      startHTTPPort,
+		Bind:          startBind,
+		Image:         startUIImage,
+		ExtraArgs:     startUIDockerArgs,
+		RestartPolicy: restartPolicy,
 	}
 
 	switch target {
