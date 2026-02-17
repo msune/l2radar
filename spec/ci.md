@@ -10,10 +10,17 @@
    `sudo go test` — BPF tests MUST NOT be skipped.
 2. **build**: `docker build`.
 3. **publish**: push on push (not PR). `GITHUB_TOKEN` auth.
-   Tags: `latest` on main, `<branch>` otherwise, `v*` for versions.
+   Tags: `bleeding-edge` on main, `<branch>` on other branches,
+   `<version>` + `latest` on `v*` tag push.
 
 ## UI image (`ghcr.io/<owner>/l2radar-ui`)
 
 1. **test**: `npm test`.
 2. **build**: `docker build`.
 3. **publish**: same tagging strategy as probe.
+
+## l2rctl
+
+1. **test**: `go test` — validates the code.
+
+l2rctl is distributed via `go install` (Go module proxy), not GitHub Releases.

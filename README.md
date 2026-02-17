@@ -41,7 +41,7 @@ ARP and NDP traffic, and presents everything in a slick dark-themed dashboard.
 **1. Install `l2rctl`:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/msune/l2radar/main/scripts/install-l2rctl.sh | sh
+go install github.com/msune/l2rctl/cmd/l2rctl@latest
 ```
 
 **2. Start everything:**
@@ -113,7 +113,7 @@ network calls between them.
 
 - Linux with kernel **6.6+** (for TCX)
 - Docker
-- `curl` or `wget` (for install script)
+- Go 1.24+ (for installing `l2rctl`)
 
 ## 🛠️ Development
 
