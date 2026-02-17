@@ -130,8 +130,6 @@ TODO
 BSD 2-Clause. eBPF code (`probe/bpf/`) is dual-licensed BSD-2-Clause OR
 GPL-2.0. See [LICENSE](LICENSE).
 
----
-
 <p align="center">
   <sub>Made with ❤️ from Barcelona · Powered by 🐝 eBPF</sub>
 </p>
