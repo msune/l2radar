@@ -6,7 +6,7 @@ import { execSync } from 'child_process'
 const version = (() => {
   if (process.env.APP_VERSION) return process.env.APP_VERSION
   try {
-    return execSync('git describe --tags --always', {
+    return execSync("git describe --tags --match 'v[0-9]*' --always", {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim()
