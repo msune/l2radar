@@ -162,6 +162,19 @@ func runStart(args []string, r docker.Runner) error {
 		fmt.Printf("  Password: %s\n", pass)
 	}
 
+	if needsUI {
+		var urlUser, urlPass string
+		if len(users) > 0 {
+			urlUser, urlPass, _ = auth.ParseUser(users[0])
+		}
+		urls := start.BuildAccessURLs(*httpsPort, *httpPort, *bind, *enableHTTP, urlUser, urlPass)
+		fmt.Println()
+		fmt.Println("UI available at:")
+		for _, u := range urls {
+			fmt.Printf("  %s\n", u)
+		}
+	}
+
 	return nil
 }
 
