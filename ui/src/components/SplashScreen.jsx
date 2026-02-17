@@ -27,11 +27,11 @@ function SplashScreen({ onDone }) {
       }}
       onClick={() => setFading(true)}
     >
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-3 bg-[#0f1623] py-4 rounded-2xl">
         <img
           src={logoSplash}
           alt="L2 Radar"
-          className="max-w-[60vw] lg:max-w-[45vw] max-h-[60vh] lg:max-h-[45vh] w-auto h-auto object-contain rounded-2xl"
+          className="max-w-[60vw] lg:max-w-[45vw] max-h-[60vh] lg:max-h-[45vh] w-auto h-auto object-contain"
         />
         <span className="text-sm text-radar-400">{__APP_VERSION__}</span>
       </div>
