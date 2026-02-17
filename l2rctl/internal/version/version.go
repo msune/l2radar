@@ -138,7 +138,7 @@ func CheckCached(ctx context.Context, current, cacheFile, proxyURL string) strin
 		var c cacheEntry
 		if json.Unmarshal(data, &c) == nil && time.Since(c.CheckedAt) < cacheTTL {
 			if IsNewer(current, c.Latest) {
-				return upgradeMsg(c.Latest)
+				return UpgradeMsg(c.Latest)
 			}
 			return ""
 		}
@@ -158,12 +158,13 @@ func CheckCached(ctx context.Context, current, cacheFile, proxyURL string) strin
 	}
 
 	if IsNewer(current, latest) {
-		return upgradeMsg(latest)
+		return UpgradeMsg(latest)
 	}
 	return ""
 }
 
-func upgradeMsg(latest string) string {
+// UpgradeMsg returns a user-facing message about an available upgrade.
+func UpgradeMsg(latest string) string {
 	return fmt.Sprintf("A new version of l2rctl is available: %s\n"+
 		"Update with: go install %s/cmd/l2rctl@latest", latest, Module)
 }
