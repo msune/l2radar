@@ -61,6 +61,19 @@ if stopped → remove then start.
 **Image pull:** `docker pull --quiet <image>` runs before every
 `docker run`. Progress output is suppressed; only errors are surfaced.
 
+### `l2rctl install [all|probe|ui]` (default: all)
+
+Same flags and behaviour as `start`, but adds `--restart unless-stopped`
+to `docker run` so that Docker automatically restarts the containers
+after a system reboot.
+
+**Prerequisites:** the Docker daemon must be enabled at boot
+(`systemctl enable docker`).
+
+**Stopping:** `l2rctl stop` stops and removes containers. The
+`unless-stopped` policy means stopped containers will *not* be
+restarted on reboot.
+
 ### `l2rctl stop [all|probe|ui]` (default: all)
 
 `docker stop` + `docker rm` for target containers. Ignores "not found"
