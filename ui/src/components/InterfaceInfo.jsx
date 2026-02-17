@@ -43,7 +43,7 @@ function InterfaceInfo({ name, timestamp, info }) {
   const stats = info.stats
 
   return (
-    <div className="bg-radar-900 border border-radar-700 rounded px-4 py-3 mb-4 grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
+    <div className="bg-radar-900 border border-radar-700 rounded px-4 py-3 mb-4 grid gap-3 text-sm">
       <div>
         <span className="text-radar-500 text-xs">Interface</span>
         <div className="text-radar-100 font-semibold">{name || '—'}</div>
