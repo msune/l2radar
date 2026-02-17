@@ -42,12 +42,9 @@ Use "l2rctl <command> --help" for more information about a command.`,
 		if versionHint == nil {
 			return
 		}
-		select {
-		case msg := <-versionHint:
-			if msg != "" {
-				fmt.Fprintln(os.Stderr, msg)
-			}
-		default:
+		msg := <-versionHint
+		if msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
 		}
 	},
 }
