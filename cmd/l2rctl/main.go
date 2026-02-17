@@ -92,8 +92,19 @@ func runStart(args []string, r docker.Runner) error {
 		return err
 	}
 
-	// Resolve auth file
+	// Resolve auth file; generate random credentials if none specified
+	// and the target includes the UI.
 	authFile := *userFile
+	var generatedCred string
+	needsUI := target == "ui" || target == "all"
+	if needsUI && *userFile == "" && len(users) == 0 {
+		cred, err := auth.GenerateRandomCredentials()
+		if err != nil {
+			return err
+		}
+		generatedCred = cred
+		users = []string{cred}
+	}
 	if len(users) > 0 {
 		path, err := auth.WriteAuthFile(users)
 		if err != nil {
@@ -125,13 +136,26 @@ func runStart(args []string, r docker.Runner) error {
 	case "probe":
 		return start.StartProbe(r, probeOpts)
 	case "ui":
-		return start.StartUI(r, uiOpts)
+		if err := start.StartUI(r, uiOpts); err != nil {
+			return err
+		}
 	case "all":
 		if err := start.StartProbe(r, probeOpts); err != nil {
 			return err
 		}
-		return start.StartUI(r, uiOpts)
+		if err := start.StartUI(r, uiOpts); err != nil {
+			return err
+		}
 	}
+
+	if generatedCred != "" {
+		user, pass, _ := auth.ParseUser(generatedCred)
+		fmt.Println()
+		fmt.Println("Generated UI credentials (no --user or --user-file provided):")
+		fmt.Printf("  Username: %s\n", user)
+		fmt.Printf("  Password: %s\n", pass)
+	}
+
 	return nil
 }
 
