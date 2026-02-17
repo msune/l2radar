@@ -178,7 +178,7 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.ui_tags }}
 
-  update-latest-tag:
+  update-release-tags:
     runs-on: ubuntu-24.04
     if: >-
       github.event_name == 'push'
@@ -193,9 +193,15 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Move latest tag
+      - name: Create release tags
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Tag l2rctl submodule so the Go module proxy can resolve it.
+          git tag -a "l2rctl/${GITHUB_REF_NAME}" -m "l2rctl ${GITHUB_REF_NAME}"
+          git push origin "l2rctl/${GITHUB_REF_NAME}"
+
+          # Move the latest annotated tag to the current commit.
           git tag -f -a latest -m "Latest release: ${GITHUB_REF_NAME}"
           git push -f origin latest

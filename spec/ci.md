@@ -24,3 +24,7 @@
 1. **test**: `go test` — validates the code.
 
 l2rctl is distributed via `go install` (Go module proxy), not GitHub Releases.
+Because `l2rctl` is a Go submodule (`github.com/msune/l2radar/l2rctl`), the
+proxy requires tags prefixed with `l2rctl/` (e.g., `l2rctl/v0.0.7`). The
+`update-release-tags` job creates this tag automatically when a `v*` tag is
+pushed.
