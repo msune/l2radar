@@ -1,7 +1,8 @@
-<p align="left">
+<p align="right">
   <a href="https://claude.ai/claude-code">
     <img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQxIDAtOC0zLjU5LTgtOHMzLjU5LTggOC04IDggMy41OSA4IDgtMy41OSA4LTggOHoiLz48L3N2Zz4=" alt="Built with Claude Code" height="28">
   </a>
+  <a href="https://github.com/msune/l2radar/actions"><img src="https://github.com/msune/l2radar/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 <p align="center">
@@ -9,23 +10,23 @@
 </p>
 
 <p align="center">
-  <em>🤖 Generated (mostly) by <a href="https://claude.ai/claude-code">Claude Code</a> · Directed & reviewed by a human 🧑‍💻</em>
+  <em>(Mostly) generated <a href="https://claude.ai/claude-code">Claude Code</a> · Directed & reviewed by a human </em> 🧑
 </p>
 
 <p align="center">
-  <a href="https://github.com/msune/l2radar/actions"><img src="https://github.com/msune/l2radar/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
----
+> [!WARNING]
+> The project is still in alpha state!
 
-# 📡 L2 Radar
+# 📡 `l2radar`
 
 **Passive L2 neighbour monitor powered by eBPF.** See every device on your
 network — MACs, IPs, vendors — without sending a single packet.
 
 L2 Radar attaches eBPF probes to your network interfaces via
-[TCX ingress](https://docs.kernel.org/bpf/), silently observes ARP and NDP
-traffic, and presents everything in a slick dark-themed dashboard.
+[TCX ingress](https://docs.kernel.org/bpf/), silently observes regular traffic,
+ARP and NDP traffic, and presents everything in a slick dark-themed dashboard.
 
 ## ✨ Features
 
@@ -34,7 +35,6 @@ traffic, and presents everything in a slick dark-themed dashboard.
 - 🏭 **OUI vendor lookup** — resolves MAC addresses to manufacturer names
 - 🌐 **Web dashboard** — real-time, searchable, sortable, mobile-friendly
 - 🔒 **HTTPS + auth** — TLS and basic auth out of the box
-- 📦 **Docker-based** — two containers, one command to run
 
 ## 🚀 Quick Start
 
@@ -47,7 +47,7 @@ curl -fsSL https://raw.githubusercontent.com/msune/l2radar/main/scripts/install-
 **2. Start everything:**
 
 ```bash
-l2rctl start --user admin:changeme
+l2rctl start
 ```
 
 **3. Open the dashboard:**
@@ -80,7 +80,7 @@ l2rctl stop
 | Keyword | Meaning |
 |---------|---------|
 | `any` (default) | All external interfaces (skips docker, veth, bridges) |
-| `all` | Every non-loopback interface |
+| `all` | Every external interface |
 
 ## 🏗️ Architecture
 
@@ -96,10 +96,10 @@ The probe and UI communicate through **JSON files on a shared volume** — no
 network calls between them.
 
 ```
- ┌──────────────────────┐        /tmp/l2radar/         ┌──────────────────────┐
- │     eBPF Probe       │   neigh-eth0.json            │       Web UI         │
+ ┌──────────────────────┐        /tmp/l2radar/          ┌──────────────────────┐
+ │     eBPF Probe       │       neigh-eth0.json         │       Web UI         │
  │                      │──────────────────────────────▶│                      │
- │  TCX ingress hooks   │   neigh-wlan0.json           │  nginx + React SPA   │
+ │  TCX ingress hooks   │      neigh-wlan0.json         │  nginx + React SPA   │
  │  ARP/NDP parsing     │──────────────────────────────▶│  auto-refresh polls  │
  │  JSON export loop    │         (read-only)           │  OUI vendor lookup   │
  └──────────────────────┘                               └──────────────────────┘
