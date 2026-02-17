@@ -35,7 +35,10 @@ to `docker` CLI (no Docker SDK).
 | `--ui-image <image>` | `ghcr.io/msune/l2radar-ui:latest` | UI image |
 | `--ui-docker-args <args>` | | Extra `docker run` arguments |
 
-`--user-file` and `--user` are mutually exclusive.
+`--user-file` and `--user` are mutually exclusive. If neither is
+provided and the target includes the UI, random credentials are
+generated automatically (username `admin` + 4 hex chars, 16-char
+alphanumeric password) and printed after successful start.
 
 **Container names:** `l2radar` (probe), `l2radar-ui` (UI).
 
@@ -51,8 +54,9 @@ to `docker` CLI (no Docker SDK).
 -v <export-dir>:<export-dir>:ro -p 443:443
 ```
 
-**Pre-start check:** if container exists and is running → error; if
-stopped → remove then start.
+**Pre-start check:** `docker inspect --type container` (to avoid
+matching images with the same name). If container is running → error;
+if stopped → remove then start.
 
 ### `l2rctl stop [all|probe|ui]` (default: all)
 
@@ -77,7 +81,7 @@ l2radar-ui   not found  -
 
 ## Auth Generation
 
-`--user admin:secret` generates a temp file at `/tmp/l2rctl-auth.yaml`:
+`--user admin:secret` generates a temp file at `/tmp/l2rctl-auth-*.yaml`:
 
 ```yaml
 users:
@@ -86,6 +90,18 @@ users:
 ```
 
 Mounted as `/etc/l2radar/auth.yaml:ro` into the UI container.
+
+When no `--user` or `--user-file` is provided and the target includes
+the UI, `GenerateRandomCredentials()` produces a credential string
+(`admin<4-hex>:<16-alphanumeric>`) which is fed into the same
+`WriteAuthFile` path. The credentials are printed to stdout after
+successful start:
+
+```
+Generated UI credentials (no --user or --user-file provided):
+  Username: admin3f8a
+  Password: aBcDeFgH12345678
+```
 
 Validation: split on first `:`, error if missing colon or empty parts.
 
