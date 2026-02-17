@@ -16,10 +16,12 @@ import (
 const usage = `Usage: l2rctl <command> [options]
 
 Commands:
-  start   Start l2radar containers (probe, ui, or all)
-  stop    Stop l2radar containers
-  status  Show container status
-  dump    Dump neighbour table
+  start <component> [options]   Start l2radar containers
+  stop  <component>             Stop l2radar containers
+  status                        Show container status
+  dump  [options]               Dump neighbour table
+
+Components: all (default), probe, ui
 
 Use "l2rctl <command> --help" for more information about a command.`
 
@@ -55,6 +57,12 @@ func (m *multiString) Set(v string) error {
 
 func runStart(args []string, r docker.Runner) error {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: l2rctl start <component> [options]\n\n")
+		fmt.Fprintf(os.Stderr, "Components: all (default), probe, ui\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		fs.PrintDefaults()
+	}
 
 	// Probe flags
 	var ifaces multiString
@@ -180,6 +188,10 @@ func runStart(args []string, r docker.Runner) error {
 
 func runStop(args []string, r docker.Runner) error {
 	fs := flag.NewFlagSet("stop", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: l2rctl stop <component>\n\n")
+		fmt.Fprintf(os.Stderr, "Components: all (default), probe, ui\n")
+	}
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -201,6 +213,11 @@ func runStatus(r docker.Runner) error {
 
 func runDump(args []string, r docker.Runner) error {
 	fs := flag.NewFlagSet("dump", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: l2rctl dump [options]\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		fs.PrintDefaults()
+	}
 	iface := fs.String("iface", "", "Interface name (required)")
 	output := fs.String("o", "", "Output format (json)")
 	exportDir := fs.String("export-dir", "/tmp/l2radar", "Export directory")
