@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/msune/l2rctl/cmd/l2rctl/cli"
+	"github.com/msune/l2radar/l2rctl/cmd/l2rctl/cli"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/msune/l2rctl
+module github.com/msune/l2radar/l2rctl
 
 go 1.24.4
 

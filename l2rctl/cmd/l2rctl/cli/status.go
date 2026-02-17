@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/msune/l2rctl/internal/status"
+	"github.com/msune/l2radar/l2rctl/internal/status"
 	"github.com/spf13/cobra"
 )
 

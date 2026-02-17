@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/msune/l2rctl/internal/stop"
+	"github.com/msune/l2radar/l2rctl/internal/stop"
 	"github.com/spf13/cobra"
 )
 

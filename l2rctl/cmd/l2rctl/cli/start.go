@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/msune/l2rctl/internal/auth"
-	"github.com/msune/l2rctl/internal/start"
+	"github.com/msune/l2radar/l2rctl/internal/auth"
+	"github.com/msune/l2radar/l2rctl/internal/start"
 	"github.com/spf13/cobra"
 )
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/msune/l2rctl/internal/docker"
+	"github.com/msune/l2radar/l2rctl/internal/docker"
 )
 
 const (
