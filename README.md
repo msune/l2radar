@@ -1,8 +1,8 @@
 <p align="right">
-  <a href="https://claude.ai/claude-code">
+  <a href="https://code.claude.com/docs/en/" target="_blank">
     <img src="https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQxIDAtOC0zLjU5LTgtOHMzLjU5LTggOC04IDggMy41OSA4IDgtMy41OSA4LTggOHoiLz48L3N2Zz4=" alt="Built with Claude Code" height="28">
   </a>
-  <a href="https://github.com/msune/l2radar/actions"><img src="https://github.com/msune/l2radar/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/msune/l2radar/actions" target="_blank"><img src="https://github.com/msune/l2radar/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 <p align="center">
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <em>(Mostly) generated <a href="https://claude.ai/claude-code">Claude Code</a> · Directed & reviewed by a human </em> 🧑
+  <em>(Mostly) generated <a href="https://code.claude.com/docs/en/" target="_blank">Claude Code</a> · Directed & reviewed by a human </em> 🧑
 </p>
 
 <p align="center">
