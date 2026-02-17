@@ -13,6 +13,10 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
 #define MAX_IPV4 4
 #define MAX_IPV6 4
 #define ETH_ALEN 6
@@ -362,38 +366,69 @@ int l2radar(struct __sk_buff *skb)
 		return TC_ACT_UNSPEC;
 
 	__u16 eth_proto = bpf_ntohs(eth->h_proto);
-	void *l3_start = (void *)(eth + 1);
+	__u16 l3_offset = sizeof(struct ethhdr);
 
 	/* Handle 802.1Q VLAN-tagged frames */
 	if (eth_proto == ETH_P_8021Q) {
 		/* VLAN tag: 2 bytes TCI + 2 bytes inner ethertype */
-		if (l3_start + 4 > data_end)
+		if ((void *)(eth + 1) + 4 > data_end)
 			return TC_ACT_UNSPEC;
-		eth_proto = bpf_ntohs(*(__be16 *)(l3_start + 2));
-		l3_start += 4;
+		eth_proto = bpf_ntohs(*(__be16 *)((void *)(eth + 1) + 2));
+		l3_offset += 4;
 	}
 
-	/*
-	 * Only track MACs from frames with known ethertypes.
-	 * WiFi drivers can present control/management frames with
-	 * synthetic source MACs that are not real neighbours.
-	 */
+
+	void *l3_start = data + l3_offset;
+
 	switch (eth_proto) {
-	case ETH_P_IP:
-	case ETH_P_IPV6:
 	case ETH_P_ARP:
+		track_mac(src_mac);
+
+		/*
+		 * Pull non-linear data only when the ARP header
+		 * extends beyond the linear area.
+		 */
+		if (unlikely(l3_start + sizeof(struct arp_ipv4) > data_end)) {
+			if (bpf_skb_pull_data(skb,
+					      l3_offset + sizeof(struct arp_ipv4)))
+				return TC_ACT_UNSPEC;
+			data = (void *)(long)skb->data;
+			data_end = (void *)(long)skb->data_end;
+			l3_start = data + l3_offset;
+		}
+		handle_arp(data, data_end, l3_start);
 		break;
+	case ETH_P_IP:
+		track_mac(src_mac);
+		break;
+	case ETH_P_IPV6: {
+		track_mac(src_mac);
+
+		/* IPv6 header is always in the linear area */
+		struct ipv6hdr *ip6 = l3_start;
+		if ((void *)(ip6 + 1) > data_end)
+			break;
+		if (ip6->nexthdr != 58) /* IPPROTO_ICMPV6 */
+			break;
+		/*
+		 * Pull non-linear data only when ICMPv6/NDP
+		 * headers extend beyond the linear area.
+		 */
+		if (unlikely((void *)(ip6 + 1) +
+			     sizeof(struct icmp6hdr_minimal) +
+			     sizeof(struct ndp_ns_na) > data_end)) {
+			if (bpf_skb_pull_data(skb, 0))
+				return TC_ACT_UNSPEC;
+			data = (void *)(long)skb->data;
+			data_end = (void *)(long)skb->data_end;
+			l3_start = data + l3_offset;
+		}
+		handle_ndp(data, data_end, l3_start);
+		break;
+	}
 	default:
 		return TC_ACT_UNSPEC;
 	}
-
-	/* Track this unicast MAC */
-	track_mac(src_mac);
-
-	if (eth_proto == ETH_P_ARP)
-		handle_arp(data, data_end, l3_start);
-	else if (eth_proto == ETH_P_IPV6)
-		handle_ndp(data, data_end, l3_start);
 
 	return TC_ACT_UNSPEC;
 }
