@@ -21,6 +21,9 @@ func StartProbe(r docker.Runner, opts ProbeOpts) error {
 	if err := ensureNotRunning(r, ProbeContainer); err != nil {
 		return err
 	}
+	if err := pullImage(r, opts.Image); err != nil {
+		return err
+	}
 
 	args := []string{"run", "-d",
 		"--privileged",

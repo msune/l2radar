@@ -21,6 +21,9 @@ func StartUI(r docker.Runner, opts UIOpts) error {
 	if err := ensureNotRunning(r, UIContainer); err != nil {
 		return err
 	}
+	if err := pullImage(r, opts.Image); err != nil {
+		return err
+	}
 
 	args := []string{"run", "-d",
 		"-v", fmt.Sprintf("%s:%s:ro", opts.ExportDir, opts.ExportDir),

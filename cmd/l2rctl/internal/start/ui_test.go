@@ -224,6 +224,77 @@ func TestStartUINotFound(t *testing.T) {
 	}
 }
 
+func TestStartUIPullsBeforeRun(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := UIOpts{
+		ExportDir: "/tmp/l2radar",
+		Image:     "ghcr.io/msune/l2radar-ui:latest",
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var pullIdx, runIdx int
+	for i, c := range m.Calls {
+		if len(c) >= 1 && c[0] == "pull" {
+			pullIdx = i
+			args := strings.Join(c, " ")
+			if !strings.Contains(args, "--quiet") {
+				t.Errorf("pull missing --quiet: %s", args)
+			}
+			if !strings.Contains(args, "ghcr.io/msune/l2radar-ui:latest") {
+				t.Errorf("pull missing image: %s", args)
+			}
+		}
+		if len(c) >= 1 && c[0] == "run" {
+			runIdx = i
+		}
+	}
+	if pullIdx == 0 && runIdx == 0 {
+		t.Fatal("no pull or run calls found")
+	}
+	if pullIdx >= runIdx {
+		t.Error("pull must happen before run")
+	}
+}
+
+func TestStartUIPullFailure(t *testing.T) {
+	m := &docker.MockRunner{
+		StderrFn: func(args []string) string {
+			if len(args) >= 1 && args[0] == "pull" {
+				return "Error: image not found"
+			}
+			return ""
+		},
+		ErrFn: func(args []string) error {
+			if len(args) >= 1 && args[0] == "pull" {
+				return fmt.Errorf("exit status 1")
+			}
+			return nil
+		},
+	}
+	opts := UIOpts{
+		ExportDir: "/tmp/l2radar",
+		Image:     "ghcr.io/msune/l2radar-ui:latest",
+	}
+
+	err := StartUI(m, opts)
+	if err == nil {
+		t.Fatal("expected error on pull failure")
+	}
+	if !strings.Contains(err.Error(), "pull image") {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	for _, c := range m.Calls {
+		if len(c) >= 1 && c[0] == "run" {
+			t.Error("run should not be called after pull failure")
+		}
+	}
+}
+
 func TestStartUIInspectUsesTypeContainer(t *testing.T) {
 	m := &docker.MockRunner{
 		ErrFn: func(args []string) error {

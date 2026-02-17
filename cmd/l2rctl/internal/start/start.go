@@ -76,6 +76,16 @@ func ensureNotRunning(r docker.Runner, name string) error {
 	return nil
 }
 
+// pullImage pulls the latest version of an image silently.
+// Only errors are surfaced; progress output is suppressed.
+func pullImage(r docker.Runner, image string) error {
+	_, stderr, err := r.Run("pull", "--quiet", image)
+	if err != nil {
+		return fmt.Errorf("pull image %q: %s", image, stderr)
+	}
+	return nil
+}
+
 // splitExtraArgs splits a space-separated string into args.
 func splitExtraArgs(s string) []string {
 	if s == "" {
