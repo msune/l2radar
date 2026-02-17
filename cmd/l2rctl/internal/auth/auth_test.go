@@ -97,6 +97,36 @@ func TestWriteAuthFile(t *testing.T) {
 	}
 }
 
+func TestGenerateRandomCredentials(t *testing.T) {
+	t.Run("format", func(t *testing.T) {
+		cred, err := GenerateRandomCredentials()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		user, pass, err := ParseUser(cred)
+		if err != nil {
+			t.Fatalf("credential not parseable: %v", err)
+		}
+		if !strings.HasPrefix(user, "admin") {
+			t.Errorf("username %q does not start with 'admin'", user)
+		}
+		if len(user) != 9 { // "admin" (5) + 4 hex chars
+			t.Errorf("username length = %d, want 9", len(user))
+		}
+		if len(pass) != 16 {
+			t.Errorf("password length = %d, want 16", len(pass))
+		}
+	})
+
+	t.Run("unique", func(t *testing.T) {
+		a, _ := GenerateRandomCredentials()
+		b, _ := GenerateRandomCredentials()
+		if a == b {
+			t.Errorf("two calls returned identical credentials: %q", a)
+		}
+	})
+}
+
 func TestValidateFlags(t *testing.T) {
 	t.Run("both set", func(t *testing.T) {
 		err := ValidateFlags("file.yaml", []string{"admin:pass"})

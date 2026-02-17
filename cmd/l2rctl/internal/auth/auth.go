@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -70,6 +72,29 @@ func WriteAuthFile(users []string) (string, error) {
 		return "", fmt.Errorf("write auth file: %w", err)
 	}
 	return f.Name(), nil
+}
+
+// GenerateRandomCredentials returns a "user:pass" string with a random
+// username (admin + 4 hex chars) and a 16-char alphanumeric password.
+func GenerateRandomCredentials() (string, error) {
+	// Username: admin + 4 hex chars (2 random bytes)
+	ub := make([]byte, 2)
+	if _, err := rand.Read(ub); err != nil {
+		return "", fmt.Errorf("generate random username: %w", err)
+	}
+	username := "admin" + hex.EncodeToString(ub)
+
+	// Password: 16 alphanumeric chars
+	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	pb := make([]byte, 16)
+	if _, err := rand.Read(pb); err != nil {
+		return "", fmt.Errorf("generate random password: %w", err)
+	}
+	for i := range pb {
+		pb[i] = alphabet[int(pb[i])%len(alphabet)]
+	}
+
+	return username + ":" + string(pb), nil
 }
 
 // ValidateFlags checks that --user-file and --user are mutually exclusive.
