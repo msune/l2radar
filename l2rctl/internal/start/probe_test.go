@@ -320,6 +320,69 @@ func TestStartProbeInspectUsesTypeContainer(t *testing.T) {
 	}
 }
 
+func TestStartProbeRestartPolicy(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := ProbeOpts{
+		Ifaces:         []string{"any"},
+		ExportDir:      "/tmp/l2radar",
+		ExportInterval: "5s",
+		PinPath:        "/sys/fs/bpf/l2radar",
+		Image:          "ghcr.io/msune/l2radar:latest",
+		RestartPolicy:  "unless-stopped",
+	}
+
+	err := StartProbe(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+	args := strings.Join(runCall, " ")
+	if !strings.Contains(args, "--restart unless-stopped") {
+		t.Errorf("missing --restart unless-stopped in: %s", args)
+	}
+}
+
+func TestStartProbeNoRestartPolicyByDefault(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := ProbeOpts{
+		Ifaces:         []string{"any"},
+		ExportDir:      "/tmp/l2radar",
+		ExportInterval: "5s",
+		PinPath:        "/sys/fs/bpf/l2radar",
+		Image:          "ghcr.io/msune/l2radar:latest",
+	}
+
+	err := StartProbe(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+	args := strings.Join(runCall, " ")
+	if strings.Contains(args, "--restart") {
+		t.Errorf("unexpected --restart flag in: %s", args)
+	}
+}
+
 func TestStartProbeImageOnlyNoContainer(t *testing.T) {
 	// Simulate: image named "l2radar" exists but no container.
 	// docker inspect --type container returns an error in this case.

@@ -8,15 +8,16 @@ import (
 
 // UIOpts holds flags for the UI container.
 type UIOpts struct {
-	ExportDir  string
-	TLSDir     string
-	UserFile   string
-	EnableHTTP bool
-	HTTPSPort  int
-	HTTPPort   int
-	Bind       string
-	Image      string
-	ExtraArgs  string
+	ExportDir     string
+	TLSDir        string
+	UserFile      string
+	EnableHTTP    bool
+	HTTPSPort     int
+	HTTPPort      int
+	Bind          string
+	Image         string
+	ExtraArgs     string
+	RestartPolicy string
 }
 
 // StartUI starts the l2radar-ui container.
@@ -32,6 +33,10 @@ func StartUI(r docker.Runner, opts UIOpts) error {
 		"-v", fmt.Sprintf("%s:%s:ro", opts.ExportDir, opts.ExportDir),
 		"-p", fmt.Sprintf("%s:%d:443", opts.Bind, opts.HTTPSPort),
 		"--name", UIContainer,
+	}
+
+	if opts.RestartPolicy != "" {
+		args = append(args, "--restart", opts.RestartPolicy)
 	}
 
 	if opts.TLSDir != "" {

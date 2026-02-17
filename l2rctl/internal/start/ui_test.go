@@ -414,6 +414,67 @@ func TestStartUIInspectUsesTypeContainer(t *testing.T) {
 	}
 }
 
+func TestStartUIRestartPolicy(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := UIOpts{
+		ExportDir:     "/tmp/l2radar",
+		Image:         "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:     12443,
+		Bind:          "127.0.0.1",
+		RestartPolicy: "unless-stopped",
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+	args := strings.Join(runCall, " ")
+	if !strings.Contains(args, "--restart unless-stopped") {
+		t.Errorf("missing --restart unless-stopped in: %s", args)
+	}
+}
+
+func TestStartUINoRestartPolicyByDefault(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := UIOpts{
+		ExportDir: "/tmp/l2radar",
+		Image:     "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort: 12443,
+		Bind:      "127.0.0.1",
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+	args := strings.Join(runCall, " ")
+	if strings.Contains(args, "--restart") {
+		t.Errorf("unexpected --restart flag in: %s", args)
+	}
+}
+
 func TestStartUIImageOnlyNoContainer(t *testing.T) {
 	m := &docker.MockRunner{
 		ErrFn: func(args []string) error {

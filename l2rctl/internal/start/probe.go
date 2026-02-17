@@ -14,6 +14,7 @@ type ProbeOpts struct {
 	PinPath        string
 	Image          string
 	ExtraArgs      string
+	RestartPolicy  string
 }
 
 // StartProbe starts the l2radar probe container.
@@ -31,6 +32,10 @@ func StartProbe(r docker.Runner, opts ProbeOpts) error {
 		"-v", "/sys/fs/bpf:/sys/fs/bpf",
 		"-v", fmt.Sprintf("%s:%s", opts.ExportDir, opts.ExportDir),
 		"--name", ProbeContainer,
+	}
+
+	if opts.RestartPolicy != "" {
+		args = append(args, "--restart", opts.RestartPolicy)
 	}
 
 	args = append(args, splitExtraArgs(opts.ExtraArgs)...)
