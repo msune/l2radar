@@ -1,8 +1,7 @@
 package dump
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -12,9 +11,8 @@ import (
 func TestDumpTableMode(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := Opts{
-		Iface:     "eth0",
-		Output:    "",
-		ExportDir: "/tmp/l2radar",
+		Iface:  "eth0",
+		Output: "",
 	}
 
 	err := Dump(m, opts)
@@ -26,64 +24,76 @@ func TestDumpTableMode(t *testing.T) {
 		t.Fatalf("expected 1 call, got %d", len(m.Calls))
 	}
 
-	args := strings.Join(m.Calls[0], " ")
-	for _, want := range []string{"exec", "l2radar", "l2radar", "dump", "--iface", "eth0"} {
-		if !strings.Contains(args, want) {
-			t.Errorf("missing %q in args: %s", want, args)
+	want := []string{"exec", "l2radar", "/l2radar", "dump", "--iface", "eth0"}
+	got := m.Calls[0]
+	if len(got) != len(want) {
+		t.Fatalf("expected args %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("arg[%d]: expected %q, got %q", i, want[i], got[i])
 		}
 	}
 }
 
 func TestDumpJSONMode(t *testing.T) {
-	// Create temp file to simulate export
-	dir := t.TempDir()
-	content := `{"neighbours":[{"mac":"aa:bb:cc:dd:ee:ff"}]}`
-	err := os.WriteFile(filepath.Join(dir, "neigh-eth0.json"), []byte(content), 0644)
-	if err != nil {
-		t.Fatalf("setup: %v", err)
-	}
-
 	m := &docker.MockRunner{}
 	opts := Opts{
-		Iface:     "eth0",
-		Output:    "json",
-		ExportDir: dir,
+		Iface:  "eth0",
+		Output: "json",
 	}
 
-	err = Dump(m, opts)
+	err := Dump(m, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// In JSON mode, no docker calls should be made
-	if len(m.Calls) != 0 {
-		t.Errorf("expected 0 docker calls in JSON mode, got %d", len(m.Calls))
-	}
-}
-
-func TestDumpJSONFileMissing(t *testing.T) {
-	m := &docker.MockRunner{}
-	opts := Opts{
-		Iface:     "eth0",
-		Output:    "json",
-		ExportDir: "/nonexistent/path",
+	if len(m.Calls) != 1 {
+		t.Fatalf("expected 1 call, got %d", len(m.Calls))
 	}
 
-	err := Dump(m, opts)
-	if err == nil {
-		t.Fatal("expected error for missing file")
+	want := []string{"exec", "l2radar", "/l2radar", "dump", "--iface", "eth0", "-o", "json"}
+	got := m.Calls[0]
+	if len(got) != len(want) {
+		t.Fatalf("expected args %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("arg[%d]: expected %q, got %q", i, want[i], got[i])
+		}
 	}
 }
 
 func TestDumpRequiresIface(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := Opts{
-		Iface:     "",
-		ExportDir: "/tmp/l2radar",
+		Iface: "",
 	}
 
 	err := Dump(m, opts)
 	if err == nil {
 		t.Fatal("expected error for missing iface")
+	}
+	if !strings.Contains(err.Error(), "interface") {
+		t.Errorf("expected error about interface, got: %v", err)
+	}
+}
+
+func TestDumpDockerError(t *testing.T) {
+	m := &docker.MockRunner{
+		ErrFn: func(args []string) error {
+			return fmt.Errorf("container not running")
+		},
+	}
+	opts := Opts{
+		Iface: "eth0",
+	}
+
+	err := Dump(m, opts)
+	if err == nil {
+		t.Fatal("expected error from docker")
+	}
+	if !strings.Contains(err.Error(), "container not running") {
+		t.Errorf("expected docker error, got: %v", err)
 	}
 }

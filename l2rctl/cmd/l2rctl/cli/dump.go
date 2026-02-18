@@ -5,31 +5,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	dumpIface     string
-	dumpOutput    string
-	dumpExportDir string
-)
+var dumpOutput string
 
 var dumpCmd = &cobra.Command{
-	Use:   "dump",
+	Use:   "dump <interface>",
 	Short: "Dump neighbour table",
-	Args:  cobra.NoArgs,
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r := NewRunner()
 		return dump.Dump(r, dump.Opts{
-			Iface:     dumpIface,
-			Output:    dumpOutput,
-			ExportDir: dumpExportDir,
+			Iface:  args[0],
+			Output: dumpOutput,
 		})
 	},
 }
 
 func init() {
-	dumpCmd.Flags().StringVar(&dumpIface, "iface", "", "interface name (required)")
 	dumpCmd.Flags().StringVarP(&dumpOutput, "output", "o", "", "output format (json)")
-	dumpCmd.Flags().StringVar(&dumpExportDir, "export-dir", "/tmp/l2radar", "export directory")
-	dumpCmd.MarkFlagRequired("iface")
 
 	rootCmd.AddCommand(dumpCmd)
 }
