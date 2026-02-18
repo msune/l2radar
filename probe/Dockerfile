@@ -6,7 +6,14 @@ RUN apt-get update && \
         llvm \
         libbpf-dev \
         linux-libc-dev \
-        gcc-multilib \
+    && if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+        apt-get install -y --no-install-recommends gcc-multilib; \
+    else \
+        for d in /usr/include/$(uname -m)-linux-gnu/*/; do \
+            [ ! -e /usr/include/$(basename "$d") ] && \
+                ln -s "$d" /usr/include/$(basename "$d"); \
+        done; \
+    fi \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
