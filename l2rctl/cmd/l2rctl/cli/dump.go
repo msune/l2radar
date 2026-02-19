@@ -21,7 +21,7 @@ var dumpCmd = &cobra.Command{
 }
 
 func init() {
-	dumpCmd.Flags().StringVarP(&dumpOutput, "output", "o", "", "output format (json)")
+	dumpCmd.Flags().StringVarP(&dumpOutput, "output", "o", "table", "output format (table|json)")
 
 	rootCmd.AddCommand(dumpCmd)
 }
