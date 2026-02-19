@@ -44,7 +44,7 @@ var (
 // addStartFlags registers the shared probe/UI flags on a command.
 func addStartFlags(cmd *cobra.Command) {
 	// Probe flags
-	cmd.Flags().StringArrayVar(&startIfaces, "iface", nil, "interface to monitor (repeatable; \"any\"=external, \"all\"=all non-loopback)")
+	cmd.Flags().StringArrayVar(&startIfaces, "iface", nil, "interface to monitor (repeatable; \"external\"=external, \"any\"=all non-loopback)")
 	cmd.Flags().StringVar(&startExportDir, "export-dir", "/tmp/l2radar", "export directory")
 	cmd.Flags().StringVar(&startExportInterval, "export-interval", "5s", "export interval")
 	cmd.Flags().StringVar(&startPinPath, "pin-path", "/sys/fs/bpf/l2radar", "BPF pin path")
@@ -80,7 +80,7 @@ func runStartOrInstall(cmd *cobra.Command, args []string, restartPolicy string) 
 
 	ifaces := startIfaces
 	if len(ifaces) == 0 {
-		ifaces = []string{"any"}
+		ifaces = []string{"external"}
 	}
 
 	// Auth validation

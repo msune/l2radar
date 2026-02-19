@@ -85,8 +85,8 @@ l2rctl stop
 
 | Keyword | Meaning |
 |---------|---------|
-| `any` (default) | All external interfaces (skips docker, veth, bridges) |
-| `all` | Every external interface |
+| `external` (default) | All external interfaces (skips docker, veth, bridges) |
+| `any` | Every non-loopback L2 interface (includes docker, veth, bridges) |
 
 ## 🏗️ Architecture
 

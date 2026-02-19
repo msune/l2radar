@@ -31,7 +31,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringArrayVar(&rootIfaces, "iface", nil, "network interface to monitor (repeatable; \"any\" for external, \"all\" for all L2)")
+	rootCmd.Flags().StringArrayVar(&rootIfaces, "iface", nil, "network interface to monitor (repeatable; \"external\" for external, \"any\" for all L2)")
 	rootCmd.Flags().StringVar(&rootPinPath, "pin-path", loader.DefaultPinPath, "base path for pinning eBPF maps")
 	rootCmd.Flags().StringVar(&rootExportDir, "export-dir", "", "directory to write JSON files (disabled if empty)")
 	rootCmd.Flags().DurationVar(&rootExportInterval, "export-interval", 5*time.Second, "export interval (only used with --export-dir)")
@@ -48,7 +48,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		Level: slog.LevelInfo,
 	}))
 
-	// Resolve "any"/"all" to actual interface names.
+	// Resolve "external"/"any" to actual interface names.
 	resolved, err := resolveInterfaces(rootIfaces)
 	if err != nil {
 		return fmt.Errorf("failed to resolve interfaces: %w", err)
