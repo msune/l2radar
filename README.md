@@ -16,9 +16,6 @@
 <p align="center">
 </p>
 
-> [!WARNING]
-> The project is still in alpha state!
-
 # 📡 `l2radar`
 
 **Passive L2 neighbour monitor powered by eBPF.** See every device on your
