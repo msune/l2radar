@@ -95,6 +95,13 @@ func TestWriteAuthFile(t *testing.T) {
 	if !strings.Contains(string(data), "admin") {
 		t.Errorf("file content missing 'admin': %s", data)
 	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("cannot stat file: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("file permissions = %o, want 600", got)
+	}
 }
 
 func TestGenerateRandomCredentials(t *testing.T) {
