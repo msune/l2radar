@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## Next
+## v0.1.1 (2026-02-20)
 - [`45ff683`](https://github.com/msune/l2radar/commit/45ff683) docs: add changelog
 - [`49ffd70`](https://github.com/msune/l2radar/commit/49ffd70) docs: update README for named volume
 
