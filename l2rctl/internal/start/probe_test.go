@@ -12,7 +12,8 @@ func TestStartProbeDefaultArgs(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -44,11 +45,11 @@ func TestStartProbeDefaultArgs(t *testing.T) {
 		"--privileged",
 		"--network=host",
 		"-v /sys/fs/bpf:/sys/fs/bpf",
-		"-v /tmp/l2radar:/tmp/l2radar",
+		"-v l2radar-data:/var/lib/l2radar",
 		"--name l2radar",
 		"ghcr.io/msune/l2radar:latest",
 		"--iface external",
-		"--export-dir /tmp/l2radar",
+		"--export-dir /var/lib/l2radar",
 		"--export-interval 5s",
 		"--pin-path /sys/fs/bpf/l2radar",
 	} {
@@ -58,11 +59,46 @@ func TestStartProbeDefaultArgs(t *testing.T) {
 	}
 }
 
+func TestStartProbeNoBindMount(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := ProbeOpts{
+		Ifaces:         []string{"external"},
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
+		ExportInterval: "5s",
+		PinPath:        "/sys/fs/bpf/l2radar",
+		Image:          "ghcr.io/msune/l2radar:latest",
+	}
+
+	err := StartProbe(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+
+	// The host-side must be the volume name, not a filesystem path.
+	args := strings.Join(runCall, " ")
+	if strings.Contains(args, "-v /var/lib/l2radar:/var/lib/l2radar") {
+		t.Errorf("must not use bind mount, got: %s", args)
+	}
+}
+
 func TestStartProbeMultipleIfaces(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := ProbeOpts{
 		Ifaces:         []string{"eth0", "eth1"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -90,7 +126,8 @@ func TestStartProbeExtraDockerArgs(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -126,7 +163,8 @@ func TestStartProbeSkipIfRunning(t *testing.T) {
 	}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -152,7 +190,8 @@ func TestStartProbeRemoveIfStopped(t *testing.T) {
 	}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -195,7 +234,8 @@ func TestStartProbeNotFound(t *testing.T) {
 	}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -211,7 +251,8 @@ func TestStartProbePullsBeforeRun(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -263,7 +304,8 @@ func TestStartProbePullFailure(t *testing.T) {
 	}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -296,7 +338,8 @@ func TestStartProbeInspectUsesTypeContainer(t *testing.T) {
 	}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -324,7 +367,8 @@ func TestStartProbeRestartPolicy(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -356,7 +400,8 @@ func TestStartProbeNoRestartPolicyByDefault(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",
@@ -396,7 +441,8 @@ func TestStartProbeImageOnlyNoContainer(t *testing.T) {
 	}
 	opts := ProbeOpts{
 		Ifaces:         []string{"external"},
-		ExportDir:      "/tmp/l2radar",
+		ExportDir:      "/var/lib/l2radar",
+		VolumeName:     "l2radar-data",
 		ExportInterval: "5s",
 		PinPath:        "/sys/fs/bpf/l2radar",
 		Image:          "ghcr.io/msune/l2radar:latest",

@@ -11,10 +11,11 @@ import (
 func TestStartUIDefaultArgs(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -35,7 +36,7 @@ func TestStartUIDefaultArgs(t *testing.T) {
 
 	args := strings.Join(runCall, " ")
 	for _, want := range []string{
-		"-v /tmp/l2radar:/tmp/l2radar:ro",
+		"-v l2radar-data:/var/lib/l2radar:ro",
 		"-p 127.0.0.1:12443:443",
 		"--name l2radar-ui",
 		"ghcr.io/msune/l2radar-ui:latest",
@@ -46,14 +47,48 @@ func TestStartUIDefaultArgs(t *testing.T) {
 	}
 }
 
+func TestStartUINoBindMount(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := UIOpts{
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+
+	// The host-side must be the volume name, not a filesystem path.
+	args := strings.Join(runCall, " ")
+	if strings.Contains(args, "-v /var/lib/l2radar:/var/lib/l2radar") {
+		t.Errorf("must not use bind mount, got: %s", args)
+	}
+}
+
 func TestStartUIWithTLS(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		TLSDir:    "/etc/mycerts",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		TLSDir:     "/etc/mycerts",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -77,11 +112,12 @@ func TestStartUIWithTLS(t *testing.T) {
 func TestStartUIWithAuthFile(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		UserFile:  "/path/to/auth.yaml",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		UserFile:   "/path/to/auth.yaml",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -105,7 +141,8 @@ func TestStartUIWithAuthFile(t *testing.T) {
 func TestStartUIEnableHTTP(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir:  "/tmp/l2radar",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
 		Image:      "ghcr.io/msune/l2radar-ui:latest",
 		HTTPSPort:  12443,
 		HTTPPort:   12080,
@@ -137,11 +174,12 @@ func TestStartUIEnableHTTP(t *testing.T) {
 func TestStartUIExtraDockerArgs(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		ExtraArgs: "--cpus 1",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		ExtraArgs:  "--cpus 1",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -165,7 +203,8 @@ func TestStartUIExtraDockerArgs(t *testing.T) {
 func TestStartUICustomPorts(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir:  "/tmp/l2radar",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
 		Image:      "ghcr.io/msune/l2radar-ui:latest",
 		HTTPSPort:  8443,
 		HTTPPort:   8080,
@@ -197,7 +236,8 @@ func TestStartUICustomPorts(t *testing.T) {
 func TestStartUIBindAllInterfaces(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir:  "/tmp/l2radar",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
 		Image:      "ghcr.io/msune/l2radar-ui:latest",
 		HTTPSPort:  12443,
 		HTTPPort:   12080,
@@ -236,10 +276,11 @@ func TestStartUISkipIfRunning(t *testing.T) {
 		},
 	}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -261,10 +302,11 @@ func TestStartUIRemoveIfStopped(t *testing.T) {
 		},
 	}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -293,10 +335,11 @@ func TestStartUINotFound(t *testing.T) {
 		},
 	}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -308,10 +351,11 @@ func TestStartUINotFound(t *testing.T) {
 func TestStartUIPullsBeforeRun(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -359,10 +403,11 @@ func TestStartUIPullFailure(t *testing.T) {
 		},
 	}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -390,10 +435,11 @@ func TestStartUIInspectUsesTypeContainer(t *testing.T) {
 		},
 	}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	_ = StartUI(m, opts)
@@ -417,7 +463,8 @@ func TestStartUIInspectUsesTypeContainer(t *testing.T) {
 func TestStartUIRestartPolicy(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir:     "/tmp/l2radar",
+		ExportDir:     "/var/lib/l2radar",
+		VolumeName:    "l2radar-data",
 		Image:         "ghcr.io/msune/l2radar-ui:latest",
 		HTTPSPort:     12443,
 		Bind:          "127.0.0.1",
@@ -448,10 +495,11 @@ func TestStartUIRestartPolicy(t *testing.T) {
 func TestStartUINoRestartPolicyByDefault(t *testing.T) {
 	m := &docker.MockRunner{}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)
@@ -485,10 +533,11 @@ func TestStartUIImageOnlyNoContainer(t *testing.T) {
 		},
 	}
 	opts := UIOpts{
-		ExportDir: "/tmp/l2radar",
-		Image:     "ghcr.io/msune/l2radar-ui:latest",
-		HTTPSPort: 12443,
-		Bind:      "127.0.0.1",
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
 	}
 
 	err := StartUI(m, opts)

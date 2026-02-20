@@ -10,6 +10,7 @@ import (
 type ProbeOpts struct {
 	Ifaces         []string
 	ExportDir      string
+	VolumeName     string
 	ExportInterval string
 	PinPath        string
 	Image          string

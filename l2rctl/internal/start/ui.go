@@ -9,6 +9,7 @@ import (
 // UIOpts holds flags for the UI container.
 type UIOpts struct {
 	ExportDir     string
+	VolumeName    string
 	TLSDir        string
 	UserFile      string
 	EnableHTTP    bool
