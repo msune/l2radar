@@ -31,7 +31,7 @@ func StartProbe(r docker.Runner, opts ProbeOpts) error {
 		"--privileged",
 		"--network=host",
 		"-v", "/sys/fs/bpf:/sys/fs/bpf",
-		"-v", fmt.Sprintf("%s:%s", opts.ExportDir, opts.ExportDir),
+		"-v", fmt.Sprintf("%s:%s", opts.VolumeName, opts.ExportDir),
 		"--name", ProbeContainer,
 	}
 

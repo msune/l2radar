@@ -31,7 +31,7 @@ func StartUI(r docker.Runner, opts UIOpts) error {
 	}
 
 	args := []string{"run", "-d",
-		"-v", fmt.Sprintf("%s:%s:ro", opts.ExportDir, opts.ExportDir),
+		"-v", fmt.Sprintf("%s:%s:ro", opts.VolumeName, opts.ExportDir),
 		"-p", fmt.Sprintf("%s:%d:443", opts.Bind, opts.HTTPSPort),
 		"--name", UIContainer,
 	}
