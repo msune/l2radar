@@ -36,13 +36,26 @@ func ParseTarget(args []string) (string, error) {
 	return t, nil
 }
 
-// isNotFound returns true if the error indicates container not found.
+// isNotFound returns true if the error indicates a resource was not found.
 func isNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
 	return strings.Contains(err.Error(), "No such container") ||
+		strings.Contains(err.Error(), "No such volume") ||
 		strings.Contains(err.Error(), "not found")
+}
+
+// removeVolume removes the named Docker volume, ignoring not-found errors.
+func removeVolume(r docker.Runner, name string) error {
+	if name == "" {
+		return nil
+	}
+	_, _, err := r.Run("volume", "rm", name)
+	if isNotFound(err) {
+		return nil
+	}
+	return err
 }
 
 // stopContainer stops and removes a single container, ignoring not-found.
@@ -71,7 +84,10 @@ func Stop(r docker.Runner, opts Opts) error {
 		if err := stopContainer(r, ProbeContainer); err != nil {
 			return err
 		}
-		return stopContainer(r, UIContainer)
+		if err := stopContainer(r, UIContainer); err != nil {
+			return err
+		}
+		return removeVolume(r, opts.VolumeName)
 	default:
 		return fmt.Errorf("invalid target: %s", opts.Target)
 	}

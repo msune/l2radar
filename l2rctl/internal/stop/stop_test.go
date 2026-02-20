@@ -127,16 +127,16 @@ func TestStopAllVolumeRmAfterContainers(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	// Use slice matching to avoid "rm l2radar" being a substring of "volume rm l2radar-data".
 	var probeRmIdx, uiRmIdx, volumeRmIdx int
 	for i, c := range m.Calls {
-		args := strings.Join(c, " ")
-		if strings.Contains(args, "rm l2radar") && !strings.Contains(args, "l2radar-ui") {
+		if len(c) == 2 && c[0] == "rm" && c[1] == ProbeContainer {
 			probeRmIdx = i + 1
 		}
-		if strings.Contains(args, "rm l2radar-ui") {
+		if len(c) == 2 && c[0] == "rm" && c[1] == UIContainer {
 			uiRmIdx = i + 1
 		}
-		if strings.Contains(args, "volume rm") {
+		if len(c) == 3 && c[0] == "volume" && c[1] == "rm" {
 			volumeRmIdx = i + 1
 		}
 	}
