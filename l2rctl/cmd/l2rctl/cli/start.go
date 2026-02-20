@@ -24,6 +24,7 @@ var (
 	// Probe flags
 	startIfaces          []string
 	startExportDir       string
+	startVolumeName      string
 	startExportInterval  string
 	startPinPath         string
 	startProbeImage      string
@@ -45,7 +46,8 @@ var (
 func addStartFlags(cmd *cobra.Command) {
 	// Probe flags
 	cmd.Flags().StringArrayVar(&startIfaces, "iface", nil, "interface to monitor (repeatable; \"external\"=external, \"any\"=all non-loopback)")
-	cmd.Flags().StringVar(&startExportDir, "export-dir", "/tmp/l2radar", "export directory")
+	cmd.Flags().StringVar(&startExportDir, "export-dir", "/var/lib/l2radar", "export directory (path inside containers)")
+	cmd.Flags().StringVar(&startVolumeName, "volume-name", "l2radar-data", "Docker named volume for sharing data between probe and UI")
 	cmd.Flags().StringVar(&startExportInterval, "export-interval", "5s", "export interval")
 	cmd.Flags().StringVar(&startPinPath, "pin-path", "/sys/fs/bpf/l2radar", "BPF pin path")
 	cmd.Flags().StringVar(&startProbeImage, "probe-image", "ghcr.io/msune/l2radar:latest", "probe image")
@@ -114,6 +116,7 @@ func runStartOrInstall(cmd *cobra.Command, args []string, restartPolicy string) 
 	probeOpts := start.ProbeOpts{
 		Ifaces:         ifaces,
 		ExportDir:      startExportDir,
+		VolumeName:     startVolumeName,
 		ExportInterval: startExportInterval,
 		PinPath:        startPinPath,
 		Image:          startProbeImage,
@@ -123,6 +126,7 @@ func runStartOrInstall(cmd *cobra.Command, args []string, restartPolicy string) 
 
 	uiOpts := start.UIOpts{
 		ExportDir:     startExportDir,
+		VolumeName:    startVolumeName,
 		TLSDir:        startTLSDir,
 		UserFile:      authFile,
 		EnableHTTP:    startEnableHTTP,
