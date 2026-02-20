@@ -10,7 +10,7 @@ import (
 
 func TestStopProbe(t *testing.T) {
 	m := &docker.MockRunner{}
-	err := Stop(m, "probe")
+	err := Stop(m, Opts{Target: "probe", VolumeName: "l2radar-data"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -33,9 +33,24 @@ func TestStopProbe(t *testing.T) {
 	}
 }
 
+func TestStopProbeDoesNotRemoveVolume(t *testing.T) {
+	m := &docker.MockRunner{}
+	err := Stop(m, Opts{Target: "probe", VolumeName: "l2radar-data"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, c := range m.Calls {
+		args := strings.Join(c, " ")
+		if strings.Contains(args, "volume rm") {
+			t.Errorf("stop probe must not remove volume, got: %s", args)
+		}
+	}
+}
+
 func TestStopUI(t *testing.T) {
 	m := &docker.MockRunner{}
-	err := Stop(m, "ui")
+	err := Stop(m, Opts{Target: "ui", VolumeName: "l2radar-data"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -58,16 +73,96 @@ func TestStopUI(t *testing.T) {
 	}
 }
 
-func TestStopAll(t *testing.T) {
+func TestStopUIDoesNotRemoveVolume(t *testing.T) {
 	m := &docker.MockRunner{}
-	err := Stop(m, "all")
+	err := Stop(m, Opts{Target: "ui", VolumeName: "l2radar-data"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should have stop+rm for both containers
-	if len(m.Calls) < 4 {
-		t.Errorf("expected at least 4 calls, got %d", len(m.Calls))
+	for _, c := range m.Calls {
+		args := strings.Join(c, " ")
+		if strings.Contains(args, "volume rm") {
+			t.Errorf("stop ui must not remove volume, got: %s", args)
+		}
+	}
+}
+
+func TestStopAll(t *testing.T) {
+	m := &docker.MockRunner{}
+	err := Stop(m, Opts{Target: "all", VolumeName: "l2radar-data"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should have stop+rm for both containers, plus volume rm
+	if len(m.Calls) < 5 {
+		t.Errorf("expected at least 5 calls (stop+rm probe, stop+rm ui, volume rm), got %d", len(m.Calls))
+	}
+}
+
+func TestStopAllRemovesVolume(t *testing.T) {
+	m := &docker.MockRunner{}
+	err := Stop(m, Opts{Target: "all", VolumeName: "l2radar-data"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var gotVolumeRm bool
+	for _, c := range m.Calls {
+		args := strings.Join(c, " ")
+		if strings.Contains(args, "volume rm l2radar-data") {
+			gotVolumeRm = true
+		}
+	}
+	if !gotVolumeRm {
+		t.Error("missing 'volume rm l2radar-data' call")
+	}
+}
+
+func TestStopAllVolumeRmAfterContainers(t *testing.T) {
+	m := &docker.MockRunner{}
+	err := Stop(m, Opts{Target: "all", VolumeName: "l2radar-data"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var probeRmIdx, uiRmIdx, volumeRmIdx int
+	for i, c := range m.Calls {
+		args := strings.Join(c, " ")
+		if strings.Contains(args, "rm l2radar") && !strings.Contains(args, "l2radar-ui") {
+			probeRmIdx = i + 1
+		}
+		if strings.Contains(args, "rm l2radar-ui") {
+			uiRmIdx = i + 1
+		}
+		if strings.Contains(args, "volume rm") {
+			volumeRmIdx = i + 1
+		}
+	}
+	if volumeRmIdx == 0 {
+		t.Fatal("no 'volume rm' call found")
+	}
+	if volumeRmIdx <= probeRmIdx {
+		t.Error("volume rm must happen after probe rm")
+	}
+	if volumeRmIdx <= uiRmIdx {
+		t.Error("volume rm must happen after ui rm")
+	}
+}
+
+func TestStopAllVolumeNotFound(t *testing.T) {
+	m := &docker.MockRunner{
+		ErrFn: func(args []string) error {
+			if len(args) >= 2 && args[0] == "volume" && args[1] == "rm" {
+				return fmt.Errorf("Error: No such volume: l2radar-data")
+			}
+			return nil
+		},
+	}
+	err := Stop(m, Opts{Target: "all", VolumeName: "l2radar-data"})
+	if err != nil {
+		t.Fatalf("volume not found should be ignored, got: %v", err)
 	}
 }
 
@@ -77,7 +172,7 @@ func TestStopNotFound(t *testing.T) {
 			return fmt.Errorf("Error: No such container: l2radar")
 		},
 	}
-	err := Stop(m, "probe")
+	err := Stop(m, Opts{Target: "probe", VolumeName: "l2radar-data"})
 	if err != nil {
 		t.Fatalf("expected graceful handling, got: %v", err)
 	}

@@ -18,6 +18,12 @@ var validTargets = map[string]bool{
 	"ui":    true,
 }
 
+// Opts holds options for the Stop function.
+type Opts struct {
+	Target     string
+	VolumeName string
+}
+
 // ParseTarget extracts the target from args (default: "all").
 func ParseTarget(args []string) (string, error) {
 	if len(args) == 0 {
@@ -55,8 +61,8 @@ func stopContainer(r docker.Runner, name string) error {
 }
 
 // Stop stops and removes target containers.
-func Stop(r docker.Runner, target string) error {
-	switch target {
+func Stop(r docker.Runner, opts Opts) error {
+	switch opts.Target {
 	case "probe":
 		return stopContainer(r, ProbeContainer)
 	case "ui":
@@ -67,6 +73,6 @@ func Stop(r docker.Runner, target string) error {
 		}
 		return stopContainer(r, UIContainer)
 	default:
-		return fmt.Errorf("invalid target: %s", target)
+		return fmt.Errorf("invalid target: %s", opts.Target)
 	}
 }

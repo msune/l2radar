@@ -5,6 +5,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	stopVolumeName string
+)
+
 var stopCmd = &cobra.Command{
 	Use:   "stop [component]",
 	Short: "Stop l2radar containers",
@@ -16,10 +20,11 @@ var stopCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return stop.Stop(r, target)
+		return stop.Stop(r, stop.Opts{Target: target, VolumeName: stopVolumeName})
 	},
 }
 
 func init() {
+	stopCmd.Flags().StringVar(&stopVolumeName, "volume-name", "l2radar-data", "Docker named volume to remove on stop all")
 	rootCmd.AddCommand(stopCmd)
 }
