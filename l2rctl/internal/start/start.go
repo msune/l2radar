@@ -96,7 +96,22 @@ func pullImage(r docker.Runner, image string) error {
 // container is running. It is a no-op when either container is active or
 // when the volume does not exist.
 func EnsureCleanVolume(r docker.Runner, volumeName string, warn io.Writer) error {
-	return nil
+	// If either container is running, the volume is in active use — leave it alone.
+	for _, name := range []string{ProbeContainer, UIContainer} {
+		if state, _ := checkContainer(r, name); state == "running" {
+			return nil
+		}
+	}
+
+	// Check whether the volume exists.
+	if _, _, err := r.Run("volume", "inspect", volumeName); err != nil {
+		// Volume does not exist; nothing to clean up.
+		return nil
+	}
+
+	fmt.Fprintf(warn, "warning: stale Docker volume %q found with no containers running; removing\n", volumeName)
+	_, _, err := r.Run("volume", "rm", volumeName)
+	return err
 }
 
 // splitExtraArgs splits a space-separated string into args.

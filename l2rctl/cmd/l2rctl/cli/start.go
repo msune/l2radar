@@ -85,6 +85,11 @@ func runStartOrInstall(cmd *cobra.Command, args []string, restartPolicy string) 
 		ifaces = []string{"external"}
 	}
 
+	// Remove stale volume if neither container is running.
+	if err := start.EnsureCleanVolume(r, startVolumeName, os.Stderr); err != nil {
+		return err
+	}
+
 	// Auth validation
 	if err := auth.ValidateFlags(startUserFile, startUsers); err != nil {
 		return err
