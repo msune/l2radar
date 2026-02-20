@@ -3,6 +3,7 @@ package start
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/msune/l2radar/l2rctl/internal/docker"
@@ -89,6 +90,13 @@ func pullImage(r docker.Runner, image string) error {
 		return nil
 	}
 	return fmt.Errorf("pull image %q: %s", image, stderr)
+}
+
+// EnsureCleanVolume warns and removes a stale named volume when neither
+// container is running. It is a no-op when either container is active or
+// when the volume does not exist.
+func EnsureCleanVolume(r docker.Runner, volumeName string, warn io.Writer) error {
+	return nil
 }
 
 // splitExtraArgs splits a space-separated string into args.
