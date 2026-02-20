@@ -22,7 +22,14 @@ Rules:
 - When implementing use git. Create a good incremental commit structure
   for every feature, module, etc. being developed
 - Git commits: scoped, clear message (what and why)
+- Changelog prep commit message: subject "CHANGELOG: prepare for vX.Y.Z"
+  with body "Prepare CHANGELOG.md for vX.Y.Z"
 - Do not amend or rebase commits unless explicitly told to do so.
+- Keep `CHANGELOG.md` updated with the same format used in the file.
+  Add new commits under `## Next` (no date) until a tag is created.
+- When asked to tag, create a commit that changes Next
+  for the version asked and add date in CHANGELOG. Then tags the version
+  using annotated tags following the pattern of other tags.
 
 Assume production-quality standards.
 
