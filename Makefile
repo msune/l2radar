@@ -11,7 +11,7 @@ start:
 		-v /sys/fs/bpf:/sys/fs/bpf 		\
 		-v /tmp/l2radar_dev:/tmp/l2radar_dev	\
 		--name l2radar_dev l2radar_dev 		\
-		--iface all --export-dir /tmp/l2radar_dev
+		--iface external --export-dir /tmp/l2radar_dev
 	@docker run -d --rm				\
 		-v /tmp/l2radar_dev:/tmp/l2radar:ro	\
 		--name l2radar-ui_dev			\
