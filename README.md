@@ -95,11 +95,12 @@ L2 Radar has three components:
 | **Web UI** | `l2radar-ui` | nginx + React dashboard, serves JSON data read-only |
 | **l2rctl** | _(host binary)_ | Orchestrates the containers via Docker CLI |
 
-The probe and UI communicate through **JSON files on a shared volume** — no
-network calls between them.
+The probe and UI communicate through **JSON files on a shared Docker named
+volume** (default `l2radar-data`, mounted at `/var/lib/l2radar` in both
+containers) — no network calls between them.
 
 ```
- ┌──────────────────────┐        /tmp/l2radar/          ┌──────────────────────┐
+ ┌──────────────────────┐     l2radar-data volume       ┌──────────────────────┐
  │     eBPF Probe       │       neigh-eth0.json         │       Web UI         │
  │                      │──────────────────────────────▶│                      │
  │  TCX ingress hooks   │      neigh-wlan0.json         │  nginx + React SPA   │
