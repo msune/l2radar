@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildMacMapping, obfuscateData, obfuscateIPv6LinkLocal } from './macObfuscation'
+import { buildMacMapping, obfuscateData, obfuscateIPv6LinkLocal, splitMacForDisplay, splitIPv6ForDisplay } from './macObfuscation'
 
 describe('buildMacMapping', () => {
   it('returns empty map for empty input', () => {
@@ -67,6 +67,50 @@ describe('obfuscateIPv6LinkLocal', () => {
   it('handles short link-local addresses', () => {
     const result = obfuscateIPv6LinkLocal(['fe80::1'])
     expect(result).toEqual(['fe80::'])
+  })
+})
+
+describe('splitMacForDisplay', () => {
+  it('splits OUI prefix from host identifier', () => {
+    expect(splitMacForDisplay('aa:bb:cc:dd:ee:ff')).toEqual({
+      prefix: 'aa:bb:cc',
+      masked: ':dd:ee:ff',
+    })
+  })
+
+  it('splits obfuscated MAC', () => {
+    expect(splitMacForDisplay('aa:bb:cc:00:00:00')).toEqual({
+      prefix: 'aa:bb:cc',
+      masked: ':00:00:00',
+    })
+  })
+})
+
+describe('splitIPv6ForDisplay', () => {
+  it('splits link-local address into prefix and last 2 groups', () => {
+    const result = splitIPv6ForDisplay('fe80::aabb:ccff:fe00:0')
+    expect(result).toEqual({ prefix: 'fe80::aabb:ccff:', masked: 'fe00:0' })
+  })
+
+  it('returns non-link-local address with empty masked', () => {
+    const result = splitIPv6ForDisplay('2001:db8::1')
+    expect(result).toEqual({ prefix: '2001:db8::1', masked: '' })
+  })
+
+  it('returns empty masked when last 2 groups are zero', () => {
+    const result = splitIPv6ForDisplay('fe80::')
+    expect(result).toEqual({ prefix: 'fe80::', masked: '' })
+  })
+
+  it('handles typical obfuscated address', () => {
+    const result = splitIPv6ForDisplay('fe80::c09e:74a6:4300:0')
+    expect(result).toEqual({ prefix: 'fe80::c09e:74a6:', masked: '4300:0' })
+  })
+
+  it('handles address with non-zero group 7 only', () => {
+    const result = splitIPv6ForDisplay('fe80::1')
+    // group 6 = 0, group 7 = 1 → both shown explicitly
+    expect(result).toEqual({ prefix: 'fe80::', masked: '0:1' })
   })
 })
 
@@ -139,6 +183,14 @@ describe('obfuscateData', () => {
     expect(result.neighbours[0].vendor).toBe('Test')
     expect(result.interfaceInfo.eth0.ipv4).toEqual(['10.0.0.254'])
     expect(result.interfaceInfo.eth0.name).toBe('eth0')
+  })
+
+  it('preserves non-link-local IPv6 addresses in neighbours', () => {
+    const neighbours = [
+      { mac: 'aa:bb:cc:11:22:33', interface: 'eth0', ipv6: ['2001:db8::1', 'fd00::1'] },
+    ]
+    const result = obfuscateData(neighbours, {}, mapping)
+    expect(result.neighbours[0].ipv6).toEqual(['2001:db8::1', 'fd00::1'])
   })
 
   it('leaves MAC unchanged if not in mapping', () => {

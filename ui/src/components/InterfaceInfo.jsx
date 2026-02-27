@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatAgo } from '../lib/timeago'
+import { splitMacForDisplay, splitIPv6ForDisplay } from '../lib/macObfuscation'
 
 function parseDuration(s) {
   if (!s) return 0
@@ -19,7 +20,13 @@ function formatBytes(bytes) {
   return `${Number.isInteger(val) ? val : val.toFixed(1)} ${units[i]}`
 }
 
-function InterfaceInfo({ name, timestamp, info }) {
+function renderMasked(text, splitFn) {
+  const { prefix, masked } = splitFn(text)
+  if (!masked) return text
+  return <>{prefix}<span className="text-radar-600">{masked}</span></>
+}
+
+function InterfaceInfo({ name, timestamp, info, privacyMode = false }) {
   const [now, setNow] = useState(Date.now())
   const [statsOpen, setStatsOpen] = useState(false)
 
@@ -50,7 +57,9 @@ function InterfaceInfo({ name, timestamp, info }) {
       </div>
       <div>
         <span className="text-radar-500 text-xs">MAC</span>
-        <div className="text-radar-100 font-mono">{info.mac || '—'}</div>
+        <div className="text-radar-100 font-mono">
+          {info.mac ? (privacyMode ? renderMasked(info.mac, splitMacForDisplay) : info.mac) : '—'}
+        </div>
       </div>
       <div>
         <span className="text-radar-500 text-xs">IPv4</span>
@@ -64,7 +73,9 @@ function InterfaceInfo({ name, timestamp, info }) {
         <span className="text-radar-500 text-xs">IPv6</span>
         <div className="text-radar-100 font-mono">
           {info.ipv6.length > 0
-            ? info.ipv6.map((ip) => <div key={ip}>{ip}</div>)
+            ? info.ipv6.map((ip) => (
+              <div key={ip}>{privacyMode ? renderMasked(ip, splitIPv6ForDisplay) : ip}</div>
+            ))
             : '—'}
         </div>
       </div>

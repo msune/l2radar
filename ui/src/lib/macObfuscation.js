@@ -78,6 +78,60 @@ function compressIPv6(groups) {
 }
 
 /**
+ * Split a MAC address into OUI prefix and host identifier for display.
+ * @param {string} mac
+ * @returns {{ prefix: string, masked: string }}
+ */
+export function splitMacForDisplay(mac) {
+  return { prefix: mac.slice(0, 8), masked: mac.slice(8) }
+}
+
+/**
+ * Split an IPv6 link-local address for privacy display.
+ * Separates the last 2 groups (containing the MAC-derived bytes) from the rest.
+ * Non-link-local addresses return with an empty masked portion.
+ * @param {string} addr
+ * @returns {{ prefix: string, masked: string }}
+ */
+export function splitIPv6ForDisplay(addr) {
+  if (!addr.toLowerCase().startsWith('fe80:')) {
+    return { prefix: addr, masked: '' }
+  }
+  const groups = expandIPv6(addr)
+  const g6 = groups[6]
+  const g7 = groups[7]
+  // If last 2 groups are both zero, they are compressed away — nothing to gray
+  if (g6 === 0 && g7 === 0) {
+    return { prefix: compressIPv6(groups), masked: '' }
+  }
+  // Compress groups 0-5 as prefix, groups 6-7 as masked suffix
+  const prefixHex = groups.slice(0, 6).map((g) => g.toString(16))
+  let bStart = -1, bLen = 0, cStart = -1, cLen = 0
+  for (let i = 0; i < 6; i++) {
+    if (prefixHex[i] === '0') {
+      if (cStart === -1) cStart = i
+      cLen = i - cStart + 1
+      if (cLen > bLen) { bStart = cStart; bLen = cLen }
+    } else {
+      cStart = -1; cLen = 0
+    }
+  }
+  let prefix
+  if (bLen >= 2) {
+    const before = prefixHex.slice(0, bStart).join(':')
+    const after = prefixHex.slice(bStart + bLen).join(':')
+    prefix = `${before}::${after}`
+  } else {
+    prefix = prefixHex.join(':')
+  }
+  const masked = `${g6.toString(16)}:${g7.toString(16)}`
+  if (prefix.endsWith(':')) {
+    return { prefix, masked }
+  }
+  return { prefix: prefix + ':', masked }
+}
+
+/**
  * Apply MAC and IPv6 link-local obfuscation to neighbours and interfaceInfo.
  * Returns cloned data with MACs replaced according to the mapping and
  * link-local IPv6 addresses masked.

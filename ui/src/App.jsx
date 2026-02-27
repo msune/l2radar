@@ -79,13 +79,14 @@ function App() {
             name={selectedInterface}
             timestamp={timestamps[selectedInterface]}
             info={displayData.interfaceInfo[selectedInterface]}
+            privacyMode={isPrivacyMode}
           />
         )}
         <SearchBar
           search={search}
           onSearchChange={setSearch}
         />
-        <NeighbourTable neighbours={filtered} showInterface={!selectedInterface} />
+        <NeighbourTable neighbours={filtered} showInterface={!selectedInterface} privacyMode={isPrivacyMode} />
         </div>
       </main>
       <footer className="bg-radar-800 px-4 py-2 text-center text-xs text-radar-500">

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { formatAgo } from '../lib/timeago'
 import { sortNeighbours } from '../lib/sorting'
 import { lookupOUI } from '../lib/ouiLookup'
+import { splitMacForDisplay, splitIPv6ForDisplay } from '../lib/macObfuscation'
 
 const COLUMNS = [
   { key: 'interface', label: 'Interface' },
@@ -25,7 +26,13 @@ function rowKey(n) {
   return `${n.interface}-${n.mac}`
 }
 
-function NeighbourTable({ neighbours, showInterface = true }) {
+function renderMasked(text, splitFn) {
+  const { prefix, masked } = splitFn(text)
+  if (!masked) return text
+  return <>{prefix}<span className="text-radar-600">{masked}</span></>
+}
+
+function NeighbourTable({ neighbours, showInterface = true, privacyMode = false }) {
   const columns = showInterface
     ? COLUMNS
     : COLUMNS.filter((c) => c.key !== 'interface')
@@ -117,7 +124,7 @@ function NeighbourTable({ neighbours, showInterface = true }) {
                     <td className="px-2 py-1.5 text-radar-400">{n.interface}</td>
                   )}
                   <td className="px-2 py-1.5 font-mono text-accent-300">
-                    {n.mac}
+                    {privacyMode ? renderMasked(n.mac, splitMacForDisplay) : n.mac}
                     {lookupOUI(n.mac) && (
                       <span className="text-radar-500 text-xs ml-1">
                         ({lookupOUI(n.mac)})
@@ -128,7 +135,13 @@ function NeighbourTable({ neighbours, showInterface = true }) {
                     {n.ipv4.join(', ') || '—'}
                   </td>
                   <td className="px-2 py-1.5 font-mono text-xs">
-                    {n.ipv6.join(', ') || '—'}
+                    {privacyMode
+                      ? (n.ipv6.length > 0
+                        ? n.ipv6.map((ip, j) => (
+                          <span key={j}>{j > 0 && ', '}{renderMasked(ip, splitIPv6ForDisplay)}</span>
+                        ))
+                        : '—')
+                      : (n.ipv6.join(', ') || '—')}
                   </td>
                   <td className="px-2 py-1.5 text-radar-300 whitespace-nowrap" title={n.firstSeen}>
                     {n.firstSeen ? formatAgo(n.firstSeen) : ''}
@@ -164,7 +177,7 @@ function NeighbourTable({ neighbours, showInterface = true }) {
               <div className="flex justify-between items-start mb-1">
                 <div>
                   <span className="font-mono text-accent-300 text-sm">
-                    {n.mac}
+                    {privacyMode ? renderMasked(n.mac, splitMacForDisplay) : n.mac}
                   </span>
                   {lookupOUI(n.mac) && (
                     <div className="text-radar-500 text-xs">
@@ -183,7 +196,11 @@ function NeighbourTable({ neighbours, showInterface = true }) {
               )}
               {n.ipv6.length > 0 && (
                 <div className="text-xs font-mono text-radar-300 break-all">
-                  {n.ipv6.join(', ')}
+                  {privacyMode
+                    ? n.ipv6.map((ip, j) => (
+                      <span key={j}>{j > 0 && ', '}{renderMasked(ip, splitIPv6ForDisplay)}</span>
+                    ))
+                    : n.ipv6.join(', ')}
                 </div>
               )}
               <div className="flex justify-between text-xs text-radar-500 mt-2">
