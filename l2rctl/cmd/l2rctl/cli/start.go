@@ -40,6 +40,7 @@ var (
 	startBind         string
 	startUIImage      string
 	startUIDockerArgs string
+	startPrivacyMode     bool
 )
 
 // addStartFlags registers the shared probe/UI flags on a command.
@@ -63,6 +64,7 @@ func addStartFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&startBind, "bind", "127.0.0.1", "bind address for exposed ports (e.g. 0.0.0.0)")
 	cmd.Flags().StringVar(&startUIImage, "ui-image", "ghcr.io/msune/l2radar-ui:latest", "UI image")
 	cmd.Flags().StringVar(&startUIDockerArgs, "ui-docker-args", "", "extra docker args for UI")
+	cmd.Flags().BoolVar(&startPrivacyMode, "privacy-mode", false, "start UI with privacy mode enabled (obfuscates MAC addresses)")
 }
 
 func init() {
@@ -135,6 +137,7 @@ func runStartOrInstall(cmd *cobra.Command, args []string, restartPolicy string) 
 		TLSDir:        startTLSDir,
 		UserFile:      authFile,
 		EnableHTTP:    startEnableHTTP,
+		PrivacyMode:      startPrivacyMode,
 		HTTPSPort:     startHTTPSPort,
 		HTTPPort:      startHTTPPort,
 		Bind:          startBind,

@@ -523,6 +523,69 @@ func TestStartUINoRestartPolicyByDefault(t *testing.T) {
 	}
 }
 
+func TestStartUIPrivacyMode(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := UIOpts{
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
+		PrivacyMode:   true,
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+	args := strings.Join(runCall, " ")
+	if !strings.Contains(args, "--privacy-mode") {
+		t.Errorf("missing --privacy-mode in: %s", args)
+	}
+}
+
+func TestStartUIDefaultNoPrivacyMode(t *testing.T) {
+	m := &docker.MockRunner{}
+	opts := UIOpts{
+		ExportDir:  "/var/lib/l2radar",
+		VolumeName: "l2radar-data",
+		Image:      "ghcr.io/msune/l2radar-ui:latest",
+		HTTPSPort:  12443,
+		Bind:       "127.0.0.1",
+	}
+
+	err := StartUI(m, opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var runCall []string
+	for _, c := range m.Calls {
+		if len(c) > 0 && c[0] == "run" {
+			runCall = c
+			break
+		}
+	}
+	if runCall == nil {
+		t.Fatal("no 'run' call found")
+	}
+	args := strings.Join(runCall, " ")
+	if strings.Contains(args, "--privacy-mode") {
+		t.Errorf("unexpected --privacy-mode in: %s", args)
+	}
+}
+
 func TestStartUIImageOnlyNoContainer(t *testing.T) {
 	m := &docker.MockRunner{
 		ErrFn: func(args []string) error {
