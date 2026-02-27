@@ -86,6 +86,60 @@ describe('NeighbourTable', () => {
     expect(within(table).getByText('Interface')).toBeInTheDocument()
   })
 
+  it('grays out last 3 MAC bytes in privacy mode', () => {
+    const data = [{
+      interface: 'eth0',
+      mac: 'aa:bb:cc:dd:ee:01',
+      ipv4: [],
+      ipv6: [],
+      firstSeen: '2026-02-14T14:00:00Z',
+      lastSeen: '2026-02-14T14:30:00Z',
+    }]
+    render(<NeighbourTable neighbours={data} privacyMode={true} />)
+    const table = screen.getByRole('table')
+    const macCell = table.querySelector('td.font-mono.text-accent-300')
+    expect(macCell.textContent).toContain('aa:bb:cc')
+    const graySpan = macCell.querySelector('.text-radar-600')
+    expect(graySpan).toBeInTheDocument()
+    expect(graySpan.textContent).toBe(':dd:ee:01')
+  })
+
+  it('does not gray MAC bytes when privacy mode is off', () => {
+    const data = [{
+      interface: 'eth0',
+      mac: 'aa:bb:cc:dd:ee:01',
+      ipv4: [],
+      ipv6: [],
+      firstSeen: '2026-02-14T14:00:00Z',
+      lastSeen: '2026-02-14T14:30:00Z',
+    }]
+    render(<NeighbourTable neighbours={data} privacyMode={false} />)
+    const table = screen.getByRole('table')
+    const macCell = table.querySelector('td.font-mono.text-accent-300')
+    expect(macCell.querySelector('.text-radar-600')).toBeNull()
+    expect(macCell.textContent).toContain('aa:bb:cc:dd:ee:01')
+  })
+
+  it('grays out last 2 groups of IPv6 link-local in privacy mode', () => {
+    const data = [{
+      interface: 'eth0',
+      mac: 'aa:bb:cc:dd:ee:01',
+      ipv4: [],
+      ipv6: ['fe80::aabb:ccff:fe00:0', '2001:db8::1'],
+      firstSeen: '2026-02-14T14:00:00Z',
+      lastSeen: '2026-02-14T14:30:00Z',
+    }]
+    render(<NeighbourTable neighbours={data} privacyMode={true} />)
+    const table = screen.getByRole('table')
+    // The masked suffix of the link-local should be grayed
+    const ipv6Cell = table.querySelectorAll('td.font-mono.text-xs')[0]
+    const graySpan = ipv6Cell.querySelector('.text-radar-600')
+    expect(graySpan).toBeInTheDocument()
+    expect(graySpan.textContent).toBe('fe00:0')
+    // Non-link-local address should have no graying
+    expect(ipv6Cell.textContent).toContain('2001:db8::1')
+  })
+
   it('toggles sort direction on same column click', () => {
     render(<NeighbourTable neighbours={mockData} />)
     const table = screen.getByRole('table')

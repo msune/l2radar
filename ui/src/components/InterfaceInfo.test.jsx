@@ -179,6 +179,66 @@ describe('InterfaceInfo', () => {
     expect(screen.getByText('2.5 MB')).toBeInTheDocument()
   })
 
+  it('grays out last 3 MAC bytes in privacy mode', () => {
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: 'de:ad:be:ef:00:01', ipv4: [], ipv6: [] }}
+        privacyMode={true}
+      />
+    )
+    const macLabel = screen.getByText('MAC')
+    const macContainer = macLabel.closest('div')
+    const graySpan = macContainer.querySelector('.text-radar-600')
+    expect(graySpan).toBeInTheDocument()
+    expect(graySpan.textContent).toBe(':ef:00:01')
+  })
+
+  it('does not gray MAC bytes when privacy mode is off', () => {
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: 'de:ad:be:ef:00:01', ipv4: [], ipv6: [] }}
+        privacyMode={false}
+      />
+    )
+    const macLabel = screen.getByText('MAC')
+    const macContainer = macLabel.closest('div')
+    expect(macContainer.querySelector('.text-radar-600')).toBeNull()
+  })
+
+  it('grays out last 2 groups of IPv6 link-local in privacy mode', () => {
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: ['fe80::aabb:ccff:fe00:0'] }}
+        privacyMode={true}
+      />
+    )
+    const ipv6Label = screen.getByText('IPv6')
+    const ipv6Container = ipv6Label.closest('div')
+    const graySpan = ipv6Container.querySelector('.text-radar-600')
+    expect(graySpan).toBeInTheDocument()
+    expect(graySpan.textContent).toBe('fe00:0')
+  })
+
+  it('does not gray non-link-local IPv6 in privacy mode', () => {
+    render(
+      <InterfaceInfo
+        name="eth0"
+        timestamp="2026-02-14T14:30:00Z"
+        info={{ mac: '', ipv4: [], ipv6: ['2001:db8::1'] }}
+        privacyMode={true}
+      />
+    )
+    const ipv6Label = screen.getByText('IPv6')
+    const ipv6Container = ipv6Label.closest('div')
+    expect(ipv6Container.querySelector('.text-radar-600')).toBeNull()
+  })
+
   it('does not show stats toggle when stats is null', () => {
     render(
       <InterfaceInfo

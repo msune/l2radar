@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## Next
+- [`0441c9d`](https://github.com/msune/l2radar/commit/0441c9d) l2rctl: add --privacy-mode flag for UI container (red → green)
+- [`669e588`](https://github.com/msune/l2radar/commit/669e588) ui: generate config.json in entrypoint.sh for --privacy-mode
+- [`b0da078`](https://github.com/msune/l2radar/commit/b0da078) ui: wire privacy mode into App
+- [`1f4738d`](https://github.com/msune/l2radar/commit/1f4738d) ui: add PrivacyToggle component and tests (red → green)
+- [`249c5f4`](https://github.com/msune/l2radar/commit/249c5f4) ui: add useConfig hook and tests (red → green)
+- [`2e4fe3c`](https://github.com/msune/l2radar/commit/2e4fe3c) ui: add MAC obfuscation library and tests (red → green)
+
 ## v0.1.1 (2026-02-20)
 - [`45ff683`](https://github.com/msune/l2radar/commit/45ff683) docs: add changelog
 - [`49ffd70`](https://github.com/msune/l2radar/commit/49ffd70) docs: update README for named volume

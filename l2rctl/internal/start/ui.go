@@ -13,6 +13,7 @@ type UIOpts struct {
 	TLSDir        string
 	UserFile      string
 	EnableHTTP    bool
+	PrivacyMode      bool
 	HTTPSPort     int
 	HTTPPort      int
 	Bind          string
@@ -58,6 +59,10 @@ func StartUI(r docker.Runner, opts UIOpts) error {
 
 	if opts.EnableHTTP {
 		args = append(args, "--enable-http")
+	}
+
+	if opts.PrivacyMode {
+		args = append(args, "--privacy-mode")
 	}
 
 	_, _, err := r.Run(args...)
