@@ -34,14 +34,24 @@ else
     htpasswd -cbB "$HTPASSWD" "admin" "changeme"
 fi
 
-# Enable plain HTTP on port 80 if --enable-http is passed
+# Parse entrypoint flags
+PRIVACY_MODE=false
 for arg in "$@"; do
     if [ "$arg" = "--enable-http" ]; then
         cp /etc/nginx/http-plain.conf /etc/nginx/conf.d/http-plain.conf
         echo "Plain HTTP (port 80) enabled"
-        break
+    fi
+    if [ "$arg" = "--privacy-mode" ]; then
+        PRIVACY_MODE=true
     fi
 done
+
+# Write runtime config for the UI
+CONFIG_FILE="/usr/share/nginx/html/config.json"
+printf '{"privacyMode":%s}\n' "$PRIVACY_MODE" > "$CONFIG_FILE"
+if [ "$PRIVACY_MODE" = "true" ]; then
+    echo "Privacy mode enabled"
+fi
 
 # Create data directory if it doesn't exist
 mkdir -p /tmp/l2radar
