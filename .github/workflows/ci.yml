@@ -210,32 +210,11 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Build UI
-        working-directory: ui
-        run: npm ci && npm run build
-
-      - name: Install demo dependencies
-        working-directory: demo
-        run: npm install
-
-      - name: Install Playwright browser
-        working-directory: demo
-        run: npx playwright install --with-deps chromium
-
       - name: Install ffmpeg and gifsicle
         run: sudo apt-get install -y --no-install-recommends ffmpeg gifsicle
 
-      - name: Record demo
-        working-directory: demo
-        run: node record.js
-
-      - name: Convert to GIF
-        run: |
-          ffmpeg -i demo/output.webm \
-            -vf "fps=10,scale=900:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5" \
-            -loop 0 \
-            assets/demo.gif
-          gifsicle -O3 --lossy=80 --colors 128 -o assets/demo.gif assets/demo.gif
+      - name: Record demo and convert to GIF
+        run: make -C demo record
 
       - name: Commit demo GIF to main
         run: |
