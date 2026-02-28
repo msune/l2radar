@@ -1,0 +1,13 @@
+{
+  "name": "l2radar-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "node record.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "playwright": "^1.50.0"
+  }
+}
