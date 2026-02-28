@@ -210,9 +210,6 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install ffmpeg and gifsicle
-        run: sudo apt-get install -y --no-install-recommends ffmpeg gifsicle
-
       - name: Record demo and convert to GIF
         run: make -C demo record
 

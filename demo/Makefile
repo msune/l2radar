@@ -57,16 +57,32 @@ _record:
 
 gif: $(WEBM)
 	@echo "==> Converting to GIF..."
+	@if ! command -v ffmpeg > /dev/null 2>&1; then \
+	  echo "==> ffmpeg not found — installing..."; \
+	  if command -v apt-get > /dev/null 2>&1; then \
+	    sudo apt-get install -y --no-install-recommends ffmpeg; \
+	  elif command -v brew > /dev/null 2>&1; then \
+	    brew install ffmpeg; \
+	  else \
+	    echo "ERROR: cannot install ffmpeg (no apt-get or brew found)"; exit 1; \
+	  fi; \
+	fi
 	ffmpeg -y -i $(WEBM) \
 	  -vf "fps=$(GIF_FPS),scale=$(GIF_SCALE):-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=$(GIF_COLORS)[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5" \
 	  -loop 0 \
 	  $(GIF)
-	@if command -v gifsicle > /dev/null 2>&1; then \
-	  echo "==> Optimising with gifsicle..."; \
-	  gifsicle -O3 --lossy=80 --colors $(GIF_COLORS) -o $(GIF) $(GIF); \
-	else \
-	  echo "==> gifsicle not found — skipping optimisation (install with: brew install gifsicle / apt-get install gifsicle)"; \
+	@if ! command -v gifsicle > /dev/null 2>&1; then \
+	  echo "==> gifsicle not found — installing..."; \
+	  if command -v apt-get > /dev/null 2>&1; then \
+	    sudo apt-get install -y --no-install-recommends gifsicle; \
+	  elif command -v brew > /dev/null 2>&1; then \
+	    brew install gifsicle; \
+	  else \
+	    echo "ERROR: cannot install gifsicle (no apt-get or brew found)"; exit 1; \
+	  fi; \
 	fi
+	@echo "==> Optimising with gifsicle..."
+	gifsicle -O3 --lossy=80 --colors $(GIF_COLORS) -o $(GIF) $(GIF)
 	@echo "==> GIF written to $(GIF)"
 
 $(WEBM):
