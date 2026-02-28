@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 
 ## Next
-- demo: automated GIF recording in CI (on version tag push); deterministic 15-host simulation across eth0 and wlan0; Git LFS storage for assets/demo.gif
+- demo: automated GIF recording in CI (on version tag push); deterministic 15-host simulation across eth0 and wlan0; GIF uploaded as a GitHub release asset (fixes [#3](https://github.com/msune/l2radar/issues/3))
 - [`0441c9d`](https://github.com/msune/l2radar/commit/0441c9d) l2rctl: add --privacy-mode flag for UI container (red → green)
 - [`669e588`](https://github.com/msune/l2radar/commit/669e588) ui: generate config.json in entrypoint.sh for --privacy-mode
 - [`b0da078`](https://github.com/msune/l2radar/commit/b0da078) ui: wire privacy mode into App
