@@ -7,12 +7,16 @@
  *   3. Launch headless Chromium with video recording.
  *   4. Pre-set the splash cookie so the splash screen is skipped.
  *   5. Navigate through the UI with realistic gestures.
- *   6. Save the recorded video as demo/output.webm.
+ *   6. Save the recorded video as $DEMO_OUTPUT_DIR/output.webm.
  *
  * Usage:
  *   node demo/record.js
  *
- * The caller (CI) is responsible for converting output.webm → assets/demo.gif.
+ * Environment:
+ *   DEMO_OUTPUT_DIR   Directory where output.webm is written.
+ *                     Defaults to a system temp dir created automatically.
+ *
+ * The caller (Makefile / CI) is responsible for converting output.webm → assets/demo.gif.
  *
  * Gesture timeline (relative to browser navigation):
  *   t≈0s   Navigate; wait for table with initial 5 hosts.
@@ -36,8 +40,9 @@ import { tmpdir }             from 'os'
 import { createServer }       from './server.js'
 import { runSimulation }      from './simulate.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const PORT      = 3737
+const __dirname   = dirname(fileURLToPath(import.meta.url))
+const OUTPUT_DIR  = process.env.DEMO_OUTPUT_DIR ?? mkdtempSync(join(tmpdir(), 'l2radar-rec-'))
+const PORT        = 3737
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -61,7 +66,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
     recordVideo: {
-      dir:  __dirname,
+      dir:  OUTPUT_DIR,
       size: { width: 1280, height: 720 },
     },
     // Pre-set the splash cookie so the splash screen doesn't block the demo.
@@ -144,9 +149,11 @@ async function main() {
   await context.close()
   const videoPath = await videoHandle.path()
 
-  const outputPath = join(__dirname, 'output.webm')
+  const outputPath = join(OUTPUT_DIR, 'output.webm')
   renameSync(videoPath, outputPath)
   console.log(`[demo] video saved to ${outputPath}`)
+  // Print for callers that need to locate the file.
+  console.log(`DEMO_WEBM=${outputPath}`)
 
   // ── 8. Cleanup ────────────────────────────────────────────────────────────
   await browser.close()

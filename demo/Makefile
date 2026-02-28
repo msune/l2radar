@@ -22,7 +22,8 @@ ROOT_DIR   := $(abspath $(DEMO_DIR)/..)
 UI_DIR     := $(ROOT_DIR)/ui
 ASSETS_DIR := $(ROOT_DIR)/assets
 
-WEBM       := $(DEMO_DIR)output.webm
+DEMO_TMPDIR := $(shell mktemp -d /tmp/l2radar-demo-XXXXXX)
+WEBM        := $(DEMO_TMPDIR)/output.webm
 GIF        := $(ASSETS_DIR)/demo.gif
 
 GIF_SCALE  := 900
@@ -50,8 +51,8 @@ _playwright-install:
 	cd $(DEMO_DIR) && npx playwright install --with-deps chromium
 
 _record:
-	@echo "==> Recording demo..."
-	cd $(DEMO_DIR) && node record.js
+	@echo "==> Recording demo (output dir: $(DEMO_TMPDIR))..."
+	cd $(DEMO_DIR) && DEMO_OUTPUT_DIR=$(DEMO_TMPDIR) node record.js
 
 ## ── GIF conversion (can be run standalone after _record) ─────────────────────
 
@@ -85,6 +86,7 @@ gif: $(WEBM)
 	gifsicle -O3 --lossy=80 --colors $(GIF_COLORS) -o $(GIF) $(GIF)
 	@echo "==> GIF written to $(GIF)"
 
+# If gif is called standalone without a prior _record, run the full recording.
 $(WEBM):
 	$(MAKE) _build-ui _install-deps _playwright-install _record
 
@@ -104,4 +106,5 @@ serve: _install-deps _build-ui
 clean:
 	@echo "==> Cleaning generated files..."
 	rm -f $(DEMO_DIR)*.webm
+	@echo "    Intermediate webm is in $(DEMO_TMPDIR) — managed by the OS."
 	@echo "    (assets/demo.gif is kept — remove manually if needed)"
