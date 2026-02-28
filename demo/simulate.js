@@ -31,10 +31,10 @@ const SIMULATION_DURATION_MS = 42000  // 42 s covers all firstOffset values (max
 export function runSimulation(dataDir) {
   mkdirSync(dataDir, { recursive: true })
 
-  // Simulation clock starts at a fixed wall-clock anchor so timestamps
-  // in the JSON look realistic and are always the same across runs.
+  // Simulation clock anchored to the real current time so that displayed
+  // timestamps match the viewer's clock (avoids "N hours in the future").
   const SIM_START_REAL = Date.now()
-  const SIM_BASE_TIME   = new Date('2026-02-28T10:00:00Z').getTime()
+  const SIM_BASE_TIME   = SIM_START_REAL
 
   // Per-host mutable state (bytes, packets, timestamps).
   const hostState = {}

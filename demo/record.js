@@ -85,6 +85,37 @@ async function main() {
     },
   })
 
+  // Inject a click-ripple visualiser so viewers can follow interactions
+  // in the recording.  Runs before every page load in this context.
+  await context.addInitScript(() => {
+    document.addEventListener('click', (e) => {
+      const SIZE = 48
+      const el = document.createElement('div')
+      el.style.cssText = [
+        'position:fixed',
+        `left:${e.clientX - SIZE / 2}px`,
+        `top:${e.clientY - SIZE / 2}px`,
+        `width:${SIZE}px`,
+        `height:${SIZE}px`,
+        'border-radius:50%',
+        'background:rgba(74,222,128,0.35)',
+        'border:2.5px solid rgba(74,222,128,0.9)',
+        'pointer-events:none',
+        'z-index:2147483647',
+        'transform:scale(1)',
+        'opacity:1',
+        'transition:transform 0.45s ease-out,opacity 0.45s ease-out',
+      ].join(';')
+      document.body.appendChild(el)
+      // Trigger the expand-and-fade transition on next paint.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.style.transform = 'scale(2.2)'
+        el.style.opacity   = '0'
+      }))
+      setTimeout(() => el.remove(), 500)
+    }, true)
+  })
+
   const page = await context.newPage()
 
   // ── 5. Navigate ───────────────────────────────────────────────────────────
