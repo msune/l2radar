@@ -25,6 +25,12 @@ L2 Radar attaches eBPF probes to your network interfaces via
 [TCX ingress](https://docs.kernel.org/bpf/), silently observes regular traffic,
 ARP and NDP traffic, and presents everything in a slick dark-themed dashboard.
 
+## 🎬 Demo
+
+<p align="center">
+  <img src="assets/demo.gif" alt="L2Radar dashboard demo" width="900">
+</p>
+
 ## ✨ Features
 
 - 🐝 **eBPF-powered** — zero packet injection, zero interference, zero overhead
