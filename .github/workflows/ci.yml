@@ -204,7 +204,6 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -213,22 +212,20 @@ jobs:
       - name: Record demo and convert to GIF
         run: make -C demo record
 
-      - name: Commit demo GIF to main
+      - name: Upload demo GIF to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp assets/demo.gif /tmp/demo.gif
-          git fetch origin main
-          git checkout main
-          git lfs install
-          cp /tmp/demo.gif assets/demo.gif
-          git add assets/demo.gif
-          if git diff --staged --quiet; then
-            echo "No changes to demo.gif — skipping commit."
-          else
-            git commit -m "demo: update demo.gif [skip ci]"
-            git push origin main
+          # Create the release for this tag if it does not exist yet.
+          if ! gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            gh release create "${{ github.ref_name }}" \
+              --title "${{ github.ref_name }}" \
+              --generate-notes \
+              --repo "${{ github.repository }}"
           fi
+          gh release upload "${{ github.ref_name }}" assets/demo.gif \
+            --clobber \
+            --repo "${{ github.repository }}"
 
   update-release-tags:
     runs-on: ubuntu-24.04

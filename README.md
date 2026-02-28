@@ -28,7 +28,7 @@ ARP and NDP traffic, and presents everything in a slick dark-themed dashboard.
 ## 🎬 Demo
 
 <p align="center">
-  <img src="assets/demo.gif" alt="L2Radar dashboard demo" width="900">
+  <img src="https://github.com/msune/l2radar/releases/latest/download/demo.gif" alt="L2Radar dashboard demo" width="900">
 </p>
 
 ## ✨ Features

@@ -20,16 +20,18 @@
  *
  * Gesture timeline (relative to browser navigation):
  *   t≈0s   Navigate; wait for table with initial 5 hosts.
- *   t≈3s   View "All" tab (5 hosts).
- *   t≈5s   Click "eth0" tab — InterfaceInfo + eth0 hosts.
- *   t≈9s   Click "wlan0" tab — InterfaceInfo + wlan0 hosts.
- *   t≈13s  Click "All" tab — watch host count grow.
- *   t≈15s  Type "192.168" in search bar.
- *   t≈17.5s Clear search.
- *   t≈19s  Passive observation — hosts grow from ~7 to 15.
- *   t≈37s  Click "eth0" briefly (9 eth0 hosts visible).
- *   t≈39s  Click "All" — final state.
- *   t≈42s  End recording.
+ *   t≈4s   View "All" tab (5 hosts).
+ *   t≈5.5s Click "eth0" tab — InterfaceInfo visible.
+ *   t≈6.5s Expand "Interface Stats" — TX/RX bytes & packets.
+ *   t≈10s  Click "wlan0" tab — wlan0 InterfaceInfo.
+ *   t≈11s  Expand "Interface Stats" — wlan0 stats.
+ *   t≈14.5s Click "All" tab — combined view.
+ *   t≈16s  Type "192.168" in search bar.
+ *   t≈18.5s Clear search.
+ *   t≈20s  Passive observation — hosts grow from ~7 to 15.
+ *   t≈38s  Click "eth0" (9 hosts) — expand stats again.
+ *   t≈42s  Click "All" — final state.
+ *   t≈45s  End recording.
  */
 
 import { chromium }           from 'playwright'
@@ -132,22 +134,32 @@ async function main() {
   // ── 6. Gesture sequence ───────────────────────────────────────────────────
 
   // View "All" tab with initial 5 hosts.
-  await sleep(2_000)
+  await sleep(1_500)
 
-  // Click "eth0" tab.
+  // Click "eth0" tab — InterfaceInfo appears (MAC, IPs, last update).
   console.log('[demo] clicking eth0 tab')
   await page.click('button:has-text("eth0")')
-  await sleep(4_000)
+  await sleep(1_000)
+
+  // Expand Interface Stats to show TX/RX bytes and packet counters.
+  console.log('[demo] expanding eth0 interface stats')
+  await page.click('button:has-text("Interface Stats")')
+  await sleep(3_500)
 
   // Click "wlan0" tab.
   console.log('[demo] clicking wlan0 tab')
   await page.click('button:has-text("wlan0")')
-  await sleep(4_000)
+  await sleep(1_000)
+
+  // Expand wlan0 stats (stats panel resets when switching tabs).
+  console.log('[demo] expanding wlan0 interface stats')
+  await page.click('button:has-text("Interface Stats")')
+  await sleep(3_500)
 
   // Back to "All" tab.
   console.log('[demo] clicking All tab')
   await page.click('button:has-text("All")')
-  await sleep(2_000)
+  await sleep(1_500)
 
   // Use the search bar — filter by IP prefix, then clear.
   console.log('[demo] using search bar')
@@ -165,14 +177,16 @@ async function main() {
   console.log('[demo] watching simulation...')
   await sleep(18_000)
 
-  // Brief eth0 tour — now shows all 9 eth0 hosts.
-  console.log('[demo] final eth0 tab')
+  // Final eth0 tour — now shows all 9 eth0 hosts with live stats.
+  console.log('[demo] final eth0 tab with stats')
   await page.click('button:has-text("eth0")')
-  await sleep(2_000)
+  await sleep(800)
+  await page.click('button:has-text("Interface Stats")')
+  await sleep(3_000)
 
   // Return to "All" for the closing shot.
   await page.click('button:has-text("All")')
-  await sleep(3_000)
+  await sleep(2_500)
 
   // ── 7. Finalise recording ─────────────────────────────────────────────────
   console.log('[demo] closing context...')
