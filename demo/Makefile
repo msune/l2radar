@@ -61,7 +61,12 @@ gif: $(WEBM)
 	  -vf "fps=$(GIF_FPS),scale=$(GIF_SCALE):-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=$(GIF_COLORS)[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5" \
 	  -loop 0 \
 	  $(GIF)
-	gifsicle -O3 --lossy=80 --colors $(GIF_COLORS) -o $(GIF) $(GIF)
+	@if command -v gifsicle > /dev/null 2>&1; then \
+	  echo "==> Optimising with gifsicle..."; \
+	  gifsicle -O3 --lossy=80 --colors $(GIF_COLORS) -o $(GIF) $(GIF); \
+	else \
+	  echo "==> gifsicle not found — skipping optimisation (install with: brew install gifsicle / apt-get install gifsicle)"; \
+	fi
 	@echo "==> GIF written to $(GIF)"
 
 $(WEBM):
